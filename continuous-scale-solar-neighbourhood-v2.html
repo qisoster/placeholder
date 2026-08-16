@@ -1,0 +1,2455 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continuous-Scale Solar Neighbourhood</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090b10;
+      --panel: #11151d;
+      --line: #526071;
+      --text: #f2f5f8;
+      --muted: #9aa7b6;
+      --accent: #86b7ff;
+      --ui-border: #3a4554;
+      --header-border: #252c37;
+      --button-bg: #171d27;
+      --button-hover: #202837;
+      --button-hover-border: #647287;
+      --note-bg: rgb(17 21 29 / 90%);
+      --note-border: #2d3744;
+      --link: #abcaff;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #d9e1e8;
+      --panel: #f3f6f8;
+      --line: #62758a;
+      --text: #172331;
+      --muted: #526374;
+      --accent: #245b98;
+      --ui-border: #9aa9b8;
+      --header-border: #b8c3ce;
+      --button-bg: #e5ebf0;
+      --button-hover: #d5e0e9;
+      --button-hover-border: #71869b;
+      --note-bg: rgb(243 246 248 / 92%);
+      --note-border: #aebbc7;
+      --link: #174f91;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--header-border);
+      background: var(--panel);
+    }
+    .title { min-width: 0; }
+    h1 { margin: 0; font-size: 16px; font-weight: 650; }
+    .details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 14px;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .control-stack { display: grid; gap: 5px; justify-items: end; flex: none; }
+    .controls, .system-shortcuts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    button {
+      min-width: 38px;
+      height: 34px;
+      padding: 0 11px;
+      border: 1px solid var(--ui-border);
+      border-radius: 7px;
+      background: var(--button-bg);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--button-hover-border); background: var(--button-hover); }
+    .system-shortcuts button {
+      min-width: 34px;
+      width: 34px;
+      padding: 0;
+      font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", system-ui, sans-serif;
+      font-size: 19px;
+      line-height: 1;
+    }
+    #themeToggle { font-size: 18px; line-height: 1; }
+    main { position: relative; min-height: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #view { cursor: grab; touch-action: none; }
+    #view.dragging { cursor: grabbing; }
+    #labels { position: absolute; inset: 0; pointer-events: none; }
+    #error {
+      display: none;
+      position: absolute;
+      inset: 0;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+      text-align: center;
+      background: var(--bg);
+    }
+    .note {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      max-width: min(560px, calc(100% - 24px));
+      padding: 7px 34px 7px 9px;
+      border: 1px solid var(--note-border);
+      border-radius: 7px;
+      background: var(--note-bg);
+      color: var(--muted);
+      font-size: 11px;
+      pointer-events: auto;
+    }
+    .note-close {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      min-width: 24px;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 24px;
+    }
+    .note-close:hover { background: var(--button-hover); }
+    .selection-card {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      min-width: 190px;
+      max-width: min(280px, calc(100% - 20px));
+      padding: 9px 32px 9px 10px;
+      border: 1px solid var(--note-border);
+      border-radius: 8px;
+      background: var(--note-bg);
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events: auto;
+    }
+    .selection-card strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 14px; }
+    .selection-card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+    .selection-card dt { color: var(--muted); }
+    .selection-card dd { margin: 0; color: var(--text); text-align: right; }
+    .selection-card[hidden] { display: none; }
+    a { color: var(--link); }
+    @media (max-width: 680px) {
+      header {
+        display: block;
+        padding: 6px 8px 7px;
+      }
+      h1 { font-size: 14px; }
+      .details {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1px;
+        margin-top: 1px;
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .details span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .details span:nth-child(n+3) { display: none; }
+      .control-stack { width: 100%; justify-items: start; gap: 4px; }
+      .controls, .system-shortcuts {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 4px;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .controls { margin-top: 5px; }
+      .controls::-webkit-scrollbar, .system-shortcuts::-webkit-scrollbar { display: none; }
+      button {
+        flex: none;
+        height: 30px;
+        min-width: 34px;
+        padding: 0 8px;
+        font-size: 12px;
+      }
+      .system-shortcuts button { width: 30px; min-width: 30px; font-size: 17px; }
+      .note {
+        right: 6px;
+        bottom: 6px;
+        max-width: calc(100% - 12px);
+        max-height: 24vh;
+        overflow: auto;
+        font-size: 10px;
+      }
+      .note-close {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        padding: 0;
+        font-size: 18px;
+      }
+      .selection-card { top: 6px; left: 6px; min-width: 170px; font-size: 10px; }
+      .selection-card strong { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>Continuous-Scale Solar Neighbourhood</h1>
+      <div class="details">
+        <span id="utc">Positions: current UTC</span>
+        <span id="scale">Scale: —</span>
+        <span>Bright orbit: nearer · fading tail: motion</span>
+        <span>Stars: proportional 3D distance · fixed marker size</span>
+        <span>Stellar trails: previous 2,000 years · Galactic frame</span>
+        <span>Natural satellites: major moons from Earth through Pluto</span>
+        <span>Wheel/pinch: fly · left/touch-drag: strafe · right-drag: orient</span>
+      </div>
+    </div>
+    <div class="control-stack">
+      <div class="controls" aria-label="View controls">
+        <button id="zoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+        <button id="innerView" type="button" title="Fit Mercury through Mars">Inner</button>
+        <button id="outerView" type="button" title="Fit the complete system through Pluto">Outer</button>
+        <button id="distantView" type="button" title="Fit Sedna's complete orbit">Distant</button>
+        <button id="neighbourhoodView" type="button" title="Fit the ten nearest stellar systems">Neighbourhood</button>
+        <button id="themeToggle" type="button" title="Switch to dark theme" aria-label="Switch to dark theme">☾</button>
+      </div>
+      <div class="system-shortcuts" aria-label="Planetary system shortcuts">
+        <button type="button" data-system="Sun" title="Sun and Solar System" aria-label="Focus the Sun and Solar System">☉</button>
+        <button type="button" data-system="Earth" title="Earth system" aria-label="Focus the Earth system">♁</button>
+        <button type="button" data-system="Mars" title="Mars system" aria-label="Focus the Mars system">♂</button>
+        <button type="button" data-system="Jupiter" title="Jupiter system" aria-label="Focus the Jupiter system">♃</button>
+        <button type="button" data-system="Saturn" title="Saturn system" aria-label="Focus the Saturn system">♄</button>
+        <button type="button" data-system="Uranus" title="Uranus system" aria-label="Focus the Uranus system">♅</button>
+        <button type="button" data-system="Neptune" title="Neptune system" aria-label="Focus the Neptune system">♆</button>
+        <button type="button" data-system="Pluto" title="Pluto system" aria-label="Focus the Pluto system">♇</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <canvas id="view" aria-label="Zoomable live true-scale map of the Solar System"></canvas>
+    <canvas id="labels" aria-hidden="true"></canvas>
+    <div id="error">This browser or device does not provide WebGL 2.</div>
+    <aside class="selection-card" id="selectionCard" hidden aria-live="polite">
+      <button class="note-close" id="closeSelection" type="button" aria-label="Close selected-body information">×</button>
+      <strong id="selectionName"></strong>
+      <dl id="selectionDetails"></dl>
+    </aside>
+    <div class="note" id="infoNote">
+      <button class="note-close" id="closeNote" type="button" aria-label="Close information">×</button>
+      Live UTC positions use approximate J2000 ecliptic ephemerides from
+      <a href="https://ssd.jpl.nasa.gov/planets/approx_pos.html" target="_blank" rel="noreferrer">JPL orbital elements</a>.
+      Natural satellites use approximate parent-relative mean-element models:
+      the Moon, both Martian moons, Jupiter's eight regular inner moons,
+      Saturn's eight principal moons, Uranus's five large moons, Triton,
+      Proteus, Nereid, and Pluto's five moons. Smaller and distant irregular
+      populations are omitted. Ceres, Sedna and Farfarout use approximate
+      two-body elements; Farfarout's orbit remains uncertain. Nearby stellar
+      systems use proportional J2000 3D positions. Their straight trails show
+      approximately 2,000 years of past motion in a Galactic frame; faint
+      brown-dwarf velocities are less certain. Brighter orbit sections are
+      nearer. Orbit tails remain solid at each body and fade at their far ends;
+      faster bodies have longer tails. Right-drag tilts and rotates the view.
+      In free navigation, wheel or pinch zoom also advances the world-space
+      rotation point along the viewing direction; panning moves it sideways.
+      Zooming inward over a visible body temporarily anchors rotation to that
+      body's true 3D position without selecting it; panning releases the anchor.
+      A selected body remains the fixed rotation point until you pan away.
+      Inner, Outer, Distant and Neighbourhood are shortcuts on one continuous
+      kilometre-based scale; units and label detail change automatically.
+    </div>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    // Stable hybrid-navigation baseline: 2026-08-15. Data, ephemerides,
+    // projection and navigation remain separated so the same renderer can be
+    // reused with a different astronomical catalogue.
+
+    const AU_KM = 149_597_870.7;
+    const LIGHT_YEAR_KM = 9_460_730_472_580.8;
+    const DEGREES_TO_RADIANS = Math.PI / 180;
+    const MILLISECONDS_PER_DAY = 86_400_000;
+    const SECONDS_PER_DAY = 86_400;
+    const DAYS_PER_JULIAN_CENTURY = 36_525;
+    const TAU = Math.PI * 2;
+    const MIN_VISIBLE_ORBIT_FRACTION = .65;
+    const MAX_VISIBLE_ORBIT_FRACTION = .95;
+    const ORBIT_FADE_FRACTION = .10;
+    const J2000_OBLIQUITY = 23.4392911 * DEGREES_TO_RADIANS;
+    const STELLAR_TRAIL_YEARS = 2_000;
+    const SECONDS_PER_JULIAN_YEAR = 31_557_600;
+    // A full change in visible scale advances the free-flight location by
+    // half of the viewport's shorter physical span. This is equivalent to a
+    // virtual camera with a 90-degree field of view while the rendered map
+    // itself remains orthographic and metrically proportional.
+    const FLY_DEPTH_VIEWPORT_FRACTION = .5;
+    const MIN_ROTATION_RADIANS_PER_PIXEL = .00035;
+    const MAX_ROTATION_RADIANS_PER_PIXEL = .006;
+
+    // DATA SCHEMA — STELLAR NEIGHBOURHOOD
+    // Each entry represents a stellar system, not an individual component.
+    // Right ascension and declination define a J2000 equatorial unit vector;
+    // distanceLy turns that direction into a proportional 3D position. An
+    // entry without distanceLy (the Galactic Centre) remains direction-only.
+    const celestialMarkers = [
+      { name: "Alpha Centauri", ra: 219.9021, dec: -60.8340, distanceLy: 4.37, pmRa: -3679, pmDec: 474, radialVelocity: -22.4, type: "system" },
+      { name: "Barnard's Star", ra: 269.4521, dec: 4.6934, distanceLy: 5.96, pmRa: -802, pmDec: 10362, radialVelocity: -110.1, type: "system" },
+      { name: "Luhman 16", ra: 162.3288, dec: -53.3181, distanceLy: 6.50, pmRa: -2759, pmDec: 354, radialVelocity: 23, motionApproximate: true, type: "system" },
+      { name: "WISE 0855−0714", ra: 133.7950, dec: -7.2451, distanceLy: 7.43, pmRa: -8118, pmDec: 673, radialVelocity: 0, motionApproximate: true, type: "system" },
+      { name: "Wolf 359", ra: 164.1200, dec: 7.0147, distanceLy: 7.86, pmRa: -3866, pmDec: -2700, radialVelocity: 19, type: "system" },
+      { name: "Lalande 21185", ra: 165.8341, dec: 35.9699, distanceLy: 8.31, pmRa: -580, pmDec: -4765, radialVelocity: -84.6, type: "system" },
+      { name: "Sirius", ra: 101.2872, dec: -16.7161, distanceLy: 8.60, pmRa: -546, pmDec: -1223, radialVelocity: -5.5, type: "system" },
+      { name: "Luyten 726-8", ra: 24.7554, dec: -17.9503, distanceLy: 8.73, pmRa: 3296, pmDec: 563, radialVelocity: 29, type: "system" },
+      { name: "Ross 154", ra: 282.4557, dec: -23.8362, distanceLy: 9.69, pmRa: 637, pmDec: -191, radialVelocity: -10.7, type: "system" },
+      { name: "Ross 248", ra: 355.4793, dec: 44.1774, distanceLy: 10.30, pmRa: 111, pmDec: -1584, radialVelocity: -77, type: "system" },
+      { name: "Galactic Centre", ra: 266.4168, dec: -29.0078, labelDistanceLy: 26_700, type: "galactic-center" }
+    ];
+
+    function equatorialVectorToEcliptic(vector) {
+      return {
+        x: vector.x,
+        y: Math.cos(J2000_OBLIQUITY) * vector.y + Math.sin(J2000_OBLIQUITY) * vector.z,
+        z: -Math.sin(J2000_OBLIQUITY) * vector.y + Math.cos(J2000_OBLIQUITY) * vector.z
+      };
+    }
+
+    function equatorialDirectionToEcliptic(rightAscensionDegrees, declinationDegrees) {
+      // Spherical RA/Dec -> Cartesian equatorial unit vector, followed by a
+      // rotation around X by Earth's J2000 obliquity. Planetary elements and
+      // the camera both use this resulting J2000 ecliptic frame.
+      const rightAscension = rightAscensionDegrees * DEGREES_TO_RADIANS;
+      const declination = declinationDegrees * DEGREES_TO_RADIANS;
+      const equatorial = {
+        x: Math.cos(declination) * Math.cos(rightAscension),
+        y: Math.cos(declination) * Math.sin(rightAscension),
+        z: Math.sin(declination)
+      };
+      return equatorialVectorToEcliptic(equatorial);
+    }
+
+    function galacticVectorToEquatorial(vector) {
+      // Transpose of the standard ICRS -> Galactic rotation matrix.
+      return {
+        x: -.0548755604 * vector.x + .4941094279 * vector.y - .8676661490 * vector.z,
+        y: -.8734370902 * vector.x - .4448296300 * vector.y - .1980763734 * vector.z,
+        z: -.4838350155 * vector.x + .7469822445 * vector.y + .4559837762 * vector.z
+      };
+    }
+
+    // Approximate Solar Galactocentric velocity (U,V,W) in km/s: U points
+    // toward the Galactic Centre, V follows Galactic rotation, W points north.
+    const solarGalacticVelocity = equatorialVectorToEcliptic(
+      galacticVectorToEquatorial({ x: 11.1, y: 244.0, z: 7.25 })
+    );
+    const stellarTrailSeconds = STELLAR_TRAIL_YEARS * SECONDS_PER_JULIAN_YEAR;
+
+    function heliocentricVelocityFromAstrometry(marker) {
+      const rightAscension = marker.ra * DEGREES_TO_RADIANS;
+      const declination = marker.dec * DEGREES_TO_RADIANS;
+      const distanceParsecs = marker.distanceLy / 3.26156;
+      const tangentialScale = 4.74047 * distanceParsecs / 1_000;
+      const radial = marker.radialVelocity;
+      const velocityAlongRa = tangentialScale * marker.pmRa;
+      const velocityAlongDec = tangentialScale * marker.pmDec;
+
+      const radialUnit = {
+        x: Math.cos(declination) * Math.cos(rightAscension),
+        y: Math.cos(declination) * Math.sin(rightAscension),
+        z: Math.sin(declination)
+      };
+      const raUnit = {
+        x: -Math.sin(rightAscension),
+        y: Math.cos(rightAscension),
+        z: 0
+      };
+      const decUnit = {
+        x: -Math.sin(declination) * Math.cos(rightAscension),
+        y: -Math.sin(declination) * Math.sin(rightAscension),
+        z: Math.cos(declination)
+      };
+      return equatorialVectorToEcliptic({
+        x: radial * radialUnit.x + velocityAlongRa * raUnit.x + velocityAlongDec * decUnit.x,
+        y: radial * radialUnit.y + velocityAlongRa * raUnit.y + velocityAlongDec * decUnit.y,
+        z: radial * radialUnit.z + velocityAlongRa * raUnit.z + velocityAlongDec * decUnit.z
+      });
+    }
+
+    for (const marker of celestialMarkers) {
+      marker.direction = equatorialDirectionToEcliptic(marker.ra, marker.dec);
+      if (marker.distanceLy) {
+        marker.positionAtJ2000 = {
+          x: marker.direction.x * marker.distanceLy * LIGHT_YEAR_KM,
+          y: marker.direction.y * marker.distanceLy * LIGHT_YEAR_KM,
+          z: marker.direction.z * marker.distanceLy * LIGHT_YEAR_KM
+        };
+        marker.heliocentricVelocity = heliocentricVelocityFromAstrometry(marker);
+        marker.galacticVelocity = {
+          x: solarGalacticVelocity.x + marker.heliocentricVelocity.x,
+          y: solarGalacticVelocity.y + marker.heliocentricVelocity.y,
+          z: solarGalacticVelocity.z + marker.heliocentricVelocity.z
+        };
+        marker.position = { ...marker.positionAtJ2000 };
+        marker.pastPosition = { ...marker.positionAtJ2000 };
+      }
+    }
+    const stellarMarkers = celestialMarkers.filter(marker => marker.position);
+    const sunPastGalacticPosition = {
+      x: -solarGalacticVelocity.x * stellarTrailSeconds,
+      y: -solarGalacticVelocity.y * stellarTrailSeconds,
+      z: -solarGalacticVelocity.z * stellarTrailSeconds
+    };
+    const farthestStellarDistanceKm = Math.max(
+      ...stellarMarkers.map(marker => marker.distanceLy * LIGHT_YEAR_KM)
+    );
+
+    // DATA SCHEMA — JPL APPROXIMATE PLANETS
+    // Orbital arrays follow JPL's order:
+    // [a (AU), e, I (degrees), L (degrees), long. perihelion, long. ascending node].
+    // `rate` contains the corresponding change per Julian century.
+    const bodies = [{
+      name: "Sun",
+      radius: 695700,
+      mass: 1.988475e30,
+      color: [1.00, .84, .35, 1]
+    }, {
+      name: "Mercury",
+      radius: 2439.7,
+      mass: 3.3011e23,
+      color: [.72, .71, .68, 1],
+      el: [.38709927, .20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593],
+      rate: [.00000037, .00001906, -.00594749, 149472.67411175, .16047689, -.12534081]
+    }, {
+      name: "Venus",
+      radius: 6051.8,
+      mass: 4.8675e24,
+      color: [.85, .70, .42, 1],
+      el: [.72333566, .00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255],
+      rate: [.00000390, -.00004107, -.00078890, 58517.81538729, .00268329, -.27769418]
+    }, {
+      name: "Earth",
+      radius: 6371,
+      mass: 6.0457e24,
+      color: [.38, .65, 1, 1],
+      el: [1.00000261, .01671123, -.00001531, 100.46457166, 102.93768193, 0],
+      rate: [.00000562, -.00004392, -.01294668, 35999.37244981, .32327364, 0]
+    }, {
+      name: "Mars",
+      radius: 3389.5,
+      mass: 6.4171e23,
+      color: [.84, .46, .33, 1],
+      el: [1.52371034, .09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
+      rate: [.00001847, .00007882, -.00813131, 19140.30268499, .44441088, -.29257343]
+    }, {
+      name: "Jupiter",
+      radius: 69911,
+      mass: 1.8982e27,
+      color: [.85, .71, .56, 1],
+      el: [5.202887, .04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
+      rate: [-.00011607, -.00013253, -.00183714, 3034.74612775, .21252668, .20469106]
+    }, {
+      name: "Saturn",
+      radius: 58232,
+      mass: 5.6834e26,
+      color: [.89, .79, .51, 1],
+      el: [9.53667594, .05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
+      rate: [-.00125060, -.00050991, .00193609, 1222.49362201, -.41897216, -.28867794]
+    }, {
+      name: "Uranus",
+      radius: 25362,
+      mass: 8.6810e25,
+      color: [.55, .84, .87, 1],
+      el: [19.18916464, .04725744, .77263783, 313.23810451, 170.95427630, 74.01692503],
+      rate: [-.00196176, -.00004397, -.00242939, 428.48202785, .40805281, .04240589]
+    }, {
+      name: "Neptune",
+      radius: 24622,
+      mass: 1.02413e26,
+      color: [.40, .55, 1, 1],
+      el: [30.06992276, .00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574],
+      rate: [.00026291, .00005105, .00035372, 218.45945325, -.32241464, -.00508664]
+    }, {
+      name: "Pluto",
+      radius: 1188.3,
+      mass: 1.303e22,
+      color: [.73, .66, .59, 1],
+      el: [39.48211675, .24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684],
+      rate: [-.00031596, .00005170, .00004818, 145.20780515, -.04062942, -.01183482]
+    }];
+
+    const satelliteBodies = [];
+
+    // Compact schema for the remaining principal satellite systems. Elements
+    // are JPL mean elements at J2000 unless an explicit epoch is supplied.
+    // Each pole rotates the parent-equatorial or local Laplace reference plane
+    // into the simulation's common J2000 ecliptic coordinate system.
+    const principalSatelliteData = [
+      // Saturn: the eight classical principal moons (small ring moons omitted).
+      ["Mimas", "Saturn", 198.2, [.72,.70,.66,1], 186_000,.020,160.4,275.3,1.6,66.2,.942422,.493,.986,40.6,83.5],
+      ["Enceladus", "Saturn", 252.1, [.88,.90,.91,1], 238_400,.005,119.5,57,0,0,1.370218,2.916,0,40.6,83.5],
+      ["Tethys", "Saturn", 531.1, [.79,.80,.80,1], 295_000,.001,335.3,0,1.1,273,1.887802,.005,4.982,40.6,83.5],
+      ["Dione", "Saturn", 561.4, [.75,.76,.75,1], 377_700,.002,116,212,0,0,2.736916,11.698,0,40.6,83.5],
+      ["Rhea", "Saturn", 763.5, [.68,.68,.66,1], 527_200,.001,44.3,31.5,.3,133.7,4.517503,33.939,35.775,40.6,83.5],
+      ["Titan", "Saturn", 2574.76, [.82,.59,.29,1], 1_221_900,.029,78.3,11.7,.3,78.6,15.945448,346.680,687.370,36.4,84],
+      ["Hyperion", "Saturn", 135, [.57,.49,.39,1], 1_481_500,.105,214,122.9,.6,87.1,21.276658,20.843,257.625,40.2,83.6],
+      ["Iapetus", "Saturn", 734.3, [.58,.56,.52,1], 3_561_700,.028,254.5,74.8,7.6,86.5,79.331002,1662.9,3130.302,288.7,78.9],
+
+      // Uranus: equatorial elements, represented by Uranus's ICRF pole.
+      ["Miranda", "Uranus", 235.8, [.65,.69,.70,1], 129_846,.001,154.8,73,4.4,100.9,1.413479,8.939,17.787,257.311,-15.175],
+      ["Ariel", "Uranus", 578.9, [.74,.77,.76,1], 190_929,.001,9.6,193.5,0,0,2.520379,28.901,0,257.311,-15.175],
+      ["Umbriel", "Uranus", 584.7, [.43,.45,.45,1], 265_986,.004,183.4,253,.1,174.8,4.144177,64.126,129.745,257.311,-15.175],
+      ["Titania", "Uranus", 788.9, [.61,.63,.61,1], 436_298,.002,184,68.1,.1,29.5,8.705869,579.928,1644.649,257.311,-15.175],
+      ["Oberon", "Uranus", 761.4, [.50,.49,.46,1], 583_511,.002,132.2,143.6,.1,76.8,13.463237,158.604,192.798,257.311,-15.175],
+
+      // Neptune: Proteus and retrograde Triton use local Laplace planes.
+      ["Proteus", "Neptune", 208, [.45,.46,.45,1], 117_600,0,0,276.8,0,0,1.122315,0,0,299.8,42.6],
+      ["Triton", "Neptune", 1352.6, [.72,.67,.61,1], 354_800,0,0,63,157.3,178.1,5.876994,0,340.379,299.8,43.1],
+      // Nereid's high-eccentricity orbit is ecliptic-based at epoch 2020.0.
+      ["Nereid", "Neptune", 170, [.55,.58,.57,1], 5_513_900,.751,296.8,318.5,5.1,319.5,360.133039,7990.433,9426.334,null,null,2458849.5],
+
+      // Pluto: equatorial elements, represented by Pluto's ICRF pole.
+      ["Charon", "Pluto", 606, [.67,.66,.63,1], 19_600,0,0,304.1,0,0,6.387222,0,0,132.993,-6.163],
+      ["Styx", "Pluto", 5.2, [.58,.57,.55,1], 43_200,.025,322.5,358.1,0,0,20.16,0,0,132.993,-6.163],
+      ["Nix", "Pluto", 18, [.70,.69,.66,1], 49_300,.015,31.4,338.2,0,0,24.85,0,0,132.993,-6.163],
+      ["Kerberos", "Pluto", 6, [.49,.48,.46,1], 58_300,.010,32.1,276.1,.4,314.3,32.17,0,9,132.993,-6.163],
+      ["Hydra", "Pluto", 18.5, [.73,.72,.69,1], 65_200,.009,139.3,335,.3,114.3,38.20,0,14,132.993,-6.163]
+    ];
+    for (const [
+      name, parentName, radius, color, aKm, e, argumentOfPeriapsis,
+      meanAnomaly, I, node, periodDays, apsisYears, nodeYears,
+      laplacePoleRa, laplacePoleDec, epochJulianDate = 2451545
+    ] of principalSatelliteData) {
+      satelliteBodies.push({
+        name, parentName, radius, color,
+        orbitModel: {
+          aKm, e, argumentOfPeriapsis, meanAnomaly, I, node, periodDays,
+          apsisYears, nodeYears, laplacePoleRa, laplacePoleDec,
+          epochJulianDate,
+          referencePlane: laplacePoleRa === null ? "ecliptic" : "laplace"
+        }
+      });
+    }
+    const orbitingBodies = bodies.slice(1);
+
+    // DATA SCHEMA — EPOCH-BASED KEPLER ORBITS
+    // These elements describe one osculating ellipse at a Julian-date epoch.
+    // The renderer advances mean anomaly with two-body Keplerian mean motion.
+    // This same schema can represent bodies around another star if the mean
+    // motion calculation is supplied with that star's mass (or an explicit
+    // orbital period). It does not model perturbations between bodies.
+    const distantBodies = [{
+      name: "Ceres",
+      radius: 469.7,
+      mass: 0,
+      color: [.58, .57, .54, 1],
+      smallBodyElements: {
+        epochJulianDate: 2460200.5,
+        a: 2.767,
+        e: .0789,
+        I: 10.59,
+        node: 80.25,
+        argumentOfPerihelion: 73.42,
+        meanAnomaly: 60.08
+      }
+    }, {
+      name: "Farfarout",
+      radius: 250,
+      mass: 0,
+      color: [.66, .50, .82, 1],
+      smallBodyElements: {
+        epochJulianDate: 2458540.5,
+        a: 80.17,
+        e: .6554,
+        I: 18.68,
+        node: 68.36,
+        argumentOfPerihelion: 231.86,
+        meanAnomaly: 186.94
+      }
+    }, {
+      name: "Sedna",
+      radius: 500,
+      mass: 0,
+      color: [.76, .42, .32, 1],
+      smallBodyElements: {
+        epochJulianDate: 2460200.5,
+        a: 541.6,
+        e: .859,
+        I: 11.93,
+        node: 144.3,
+        argumentOfPerihelion: 310.84,
+        meanAnomaly: 358.53
+      }
+    }];
+    const sedna = distantBodies.find(body => body.name === "Sedna");
+    satelliteBodies.push({
+      name: "Moon",
+      parentName: "Earth",
+      radius: 1737.4,
+      color: [.72, .72, .70, 1],
+      orbitModel: {
+        aKm: 384_400,
+        e: .0554,
+        argumentOfPeriapsis: 318.15,
+        meanAnomaly: 135.27,
+        I: 5.16,
+        node: 125.08,
+        periodDays: 27.321661,
+        apsisYears: 5.997,
+        nodeYears: 18.600,
+        referencePlane: "ecliptic"
+      }
+    }, {
+      name: "Phobos",
+      parentName: "Mars",
+      radius: 11.08,
+      color: [.56, .50, .44, 1],
+      orbitModel: {
+        aKm: 9_375,
+        e: .015,
+        argumentOfPeriapsis: 216.3,
+        meanAnomaly: 189.7,
+        I: 1.1,
+        node: 169.2,
+        periodDays: .31891023,
+        apsisYears: 1.1,
+        nodeYears: 2.3,
+        laplacePoleRa: 317.7,
+        laplacePoleDec: 52.9,
+        referencePlane: "laplace"
+      }
+    }, {
+      name: "Deimos",
+      parentName: "Mars",
+      radius: 6.2,
+      color: [.64, .58, .50, 1],
+      orbitModel: {
+        aKm: 23_457,
+        e: 0,
+        argumentOfPeriapsis: 0,
+        meanAnomaly: 205,
+        I: 1.8,
+        node: 54.3,
+        periodDays: 1.2624407,
+        apsisYears: 0,
+        nodeYears: 56.2,
+        laplacePoleRa: 316.6,
+        laplacePoleDec: 53.5,
+        referencePlane: "laplace"
+      }
+    }, {
+      name: "Metis",
+      parentName: "Jupiter",
+      radius: 21.5,
+      color: [.56, .52, .48, 1],
+      orbitModel: {
+        aKm: 128_000, e: 0, argumentOfPeriapsis: 0, meanAnomaly: 166,
+        I: 0, node: 0, periodDays: .294779, apsisYears: 0, nodeYears: 0,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Adrastea",
+      parentName: "Jupiter",
+      radius: 8.2,
+      color: [.48, .46, .43, 1],
+      orbitModel: {
+        aKm: 129_000, e: 0, argumentOfPeriapsis: 0, meanAnomaly: 214.5,
+        I: 0, node: 0, periodDays: .298260, apsisYears: 0, nodeYears: 0,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Amalthea",
+      parentName: "Jupiter",
+      radius: 83.5,
+      color: [.65, .38, .27, 1],
+      orbitModel: {
+        aKm: 181_400, e: .003, argumentOfPeriapsis: 180.1, meanAnomaly: 310.6,
+        I: .4, node: 282.9, periodDays: .499918, apsisYears: .196, nodeYears: .393,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Thebe",
+      parentName: "Jupiter",
+      radius: 49.3,
+      color: [.52, .38, .31, 1],
+      orbitModel: {
+        aKm: 221_900, e: .018, argumentOfPeriapsis: 26.6, meanAnomaly: 182.1,
+        I: 1.1, node: 340.4, periodDays: .676105, apsisYears: .398, nodeYears: .797,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Io",
+      parentName: "Jupiter",
+      radius: 1821.49,
+      color: [.88, .72, .33, 1],
+      orbitModel: {
+        aKm: 421_800, e: .004, argumentOfPeriapsis: 49.1, meanAnomaly: 330.9,
+        I: 0, node: 0, periodDays: 1.762732, apsisYears: 1.333, nodeYears: 0,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Europa",
+      parentName: "Jupiter",
+      radius: 1560.8,
+      color: [.76, .70, .57, 1],
+      orbitModel: {
+        aKm: 671_100, e: .009, argumentOfPeriapsis: 45, meanAnomaly: 345.4,
+        I: .5, node: 184, periodDays: 3.525463, apsisYears: 1.394, nodeYears: 30.202,
+        laplacePoleRa: 268.1, laplacePoleDec: 64.5, referencePlane: "laplace"
+      }
+    }, {
+      name: "Ganymede",
+      parentName: "Jupiter",
+      radius: 2631.2,
+      color: [.58, .52, .43, 1],
+      orbitModel: {
+        aKm: 1_070_400, e: .001, argumentOfPeriapsis: 198.3, meanAnomaly: 324.8,
+        I: .2, node: 58.5, periodDays: 7.155588, apsisYears: 68.301, nodeYears: 137.812,
+        laplacePoleRa: 268.2, laplacePoleDec: 64.6, referencePlane: "laplace"
+      }
+    }, {
+      name: "Callisto",
+      parentName: "Jupiter",
+      radius: 2410.3,
+      color: [.39, .35, .31, 1],
+      orbitModel: {
+        aKm: 1_882_700, e: .007, argumentOfPeriapsis: 43.8, meanAnomaly: 87.4,
+        I: .3, node: 309.1, periodDays: 16.690440, apsisYears: 277.921, nodeYears: 577.264,
+        laplacePoleRa: 268.7, laplacePoleDec: 64.8, referencePlane: "laplace"
+      }
+    });
+    const renderedOrbitingBodies = [...orbitingBodies, ...distantBodies, ...satelliteBodies];
+    const renderedBodies = [...bodies, ...distantBodies, ...satelliteBodies];
+    const bodyByName = new Map(renderedBodies.map(body => [body.name, body]));
+    const satellitesByParent = new Map();
+
+    for (const satellite of satelliteBodies) {
+      satellite.parent = bodyByName.get(satellite.parentName);
+      satellite.referenceBasis = satelliteReferenceBasis(satellite.orbitModel);
+      if (!satellitesByParent.has(satellite.parentName)) {
+        satellitesByParent.set(satellite.parentName, []);
+      }
+      satellitesByParent.get(satellite.parentName).push(satellite);
+    }
+    for (const satellites of satellitesByParent.values()) {
+      // Largest moons get label priority when the system is still small.
+      satellites.sort((first, second) => second.radius - first.radius);
+    }
+
+    const sun = bodyByName.get("Sun");
+    const mars = bodyByName.get("Mars");
+    const pluto = bodyByName.get("Pluto");
+    const charon = bodyByName.get("Charon");
+    const saturn = bodyByName.get("Saturn");
+    const neptune = bodyByName.get("Neptune");
+    const plutoMoons = satellitesByParent.get("Pluto");
+    let minimumOrbitalSpeed = 0;
+    let maximumOrbitalSpeed = 1;
+    const barycenter = {
+      name: "Barycenter",
+      position: {
+        x: 0,
+        y: 0,
+        z: 0
+      }
+    };
+
+    function elements(body, T) {
+      const v = body.el.map((n, i) => n + body.rate[i] * T);
+      return {
+        a: v[0],
+        e: v[1],
+        I: v[2] * DEGREES_TO_RADIANS,
+        L: v[3] * DEGREES_TO_RADIANS,
+        peri: v[4] * DEGREES_TO_RADIANS,
+        node: v[5] * DEGREES_TO_RADIANS
+      };
+    }
+
+    function pointWithScale(el, E, distanceScale) {
+      // Kepler ellipse in its own orbital plane. E is eccentric anomaly; the
+      // focus (the central body) is at the origin rather than ellipse centre.
+      const xp = el.a * (Math.cos(E) - el.e),
+        yp = el.a * Math.sqrt(1 - el.e * el.e) * Math.sin(E);
+      const w = el.peri - el.node,
+        cw = Math.cos(w),
+        sw = Math.sin(w);
+      const cO = Math.cos(el.node),
+        sO = Math.sin(el.node),
+        cI = Math.cos(el.I),
+        sI = Math.sin(el.I);
+      // Rotate orbital-plane coordinates by argument of periapsis, inclination
+      // and ascending node, then convert AU to kilometres.
+      return {
+        x: ((cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp) * distanceScale,
+        y: ((cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp) * distanceScale,
+        z: ((sw * sI) * xp + (cw * sI) * yp) * distanceScale
+      };
+    }
+
+    function point(el, E) {
+      return pointWithScale(el, E, AU_KM);
+    }
+
+    function solveE(M, e) {
+      // Newton-Raphson solution of Kepler's equation: M = E - e sin(E).
+      // Normalizing M near zero improves convergence for long elapsed times.
+      M = ((M + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      let E = M + e * Math.sin(M);
+      for (let i = 0; i < 12; i++) {
+        const d = (M - (E - e * Math.sin(E))) / (1 - e * Math.cos(E));
+        E += d;
+        if (Math.abs(d) < 1e-12) break;
+      }
+      return E;
+    }
+
+    function orbitFromElements(body, orbitalElements, eccentricAnomaly) {
+      // Four exact samples reconstruct the 3D ellipse as centre + A cos(E) +
+      // B sin(E). The shader can then draw the complete analytic curve without
+      // storing a sampled polyline.
+      body.elements = orbitalElements;
+      body.E = eccentricAnomaly;
+      body.position = point(orbitalElements, eccentricAnomaly);
+      const p0 = point(orbitalElements, 0);
+      const p1 = point(orbitalElements, Math.PI);
+      const p2 = point(orbitalElements, Math.PI / 2);
+      const p3 = point(orbitalElements, Math.PI * 1.5);
+      body.orbit = {
+        center: {
+          x: (p0.x + p1.x) / 2,
+          y: (p0.y + p1.y) / 2,
+          z: (p0.z + p1.z) / 2
+        },
+        a: {
+          x: (p0.x - p1.x) / 2,
+          y: (p0.y - p1.y) / 2,
+          z: (p0.z - p1.z) / 2
+        },
+        b: {
+          x: (p2.x - p3.x) / 2,
+          y: (p2.y - p3.y) / 2,
+          z: (p2.z - p3.z) / 2
+        }
+      };
+    }
+
+    function updateDistantSmallBody(body, julianDate) {
+      const source = body.smallBodyElements;
+      // Gaussian gravitational constant form of Kepler's third law for a
+      // negligible-mass body orbiting one solar mass: n = k / a^(3/2).
+      const meanMotionRadiansPerDay = .01720209895 / Math.pow(source.a, 1.5);
+      const meanAnomaly = source.meanAnomaly * DEGREES_TO_RADIANS +
+        meanMotionRadiansPerDay * (julianDate - source.epochJulianDate);
+      const longitudeOfPerihelion = source.node + source.argumentOfPerihelion;
+      const orbitalElements = {
+        a: source.a,
+        e: source.e,
+        I: source.I * DEGREES_TO_RADIANS,
+        L: meanAnomaly + longitudeOfPerihelion * DEGREES_TO_RADIANS,
+        peri: longitudeOfPerihelion * DEGREES_TO_RADIANS,
+        node: source.node * DEGREES_TO_RADIANS
+      };
+      const eccentricAnomaly = solveE(meanAnomaly, source.e);
+      orbitFromElements(body, orbitalElements, eccentricAnomaly);
+
+      const sinE = Math.sin(eccentricAnomaly);
+      const cosE = Math.cos(eccentricAnomaly);
+      const tangent = {
+        x: -body.orbit.a.x * sinE + body.orbit.b.x * cosE,
+        y: -body.orbit.a.y * sinE + body.orbit.b.y * cosE,
+        z: -body.orbit.a.z * sinE + body.orbit.b.z * cosE
+      };
+      const eccentricAnomalyRate = meanMotionRadiansPerDay /
+        SECONDS_PER_DAY / (1 - source.e * cosE);
+      body.speedKmPerSecond = Math.hypot(tangent.x, tangent.y, tangent.z) *
+        eccentricAnomalyRate;
+    }
+
+    function normalizedVector(vector) {
+      const length = Math.hypot(vector.x, vector.y, vector.z);
+      return { x: vector.x / length, y: vector.y / length, z: vector.z / length };
+    }
+
+    function crossProduct(first, second) {
+      return {
+        x: first.y * second.z - first.z * second.y,
+        y: first.z * second.x - first.x * second.z,
+        z: first.x * second.y - first.y * second.x
+      };
+    }
+
+    function satelliteReferenceBasis(model) {
+      if (model.referencePlane === "ecliptic") {
+        return {
+          x: { x: 1, y: 0, z: 0 },
+          y: { x: 0, y: 1, z: 0 },
+          z: { x: 0, y: 0, z: 1 }
+        };
+      }
+
+      const pole = equatorialDirectionToEcliptic(model.laplacePoleRa, model.laplacePoleDec);
+      let xAxis = crossProduct({ x: 0, y: 0, z: 1 }, pole);
+      if (Math.hypot(xAxis.x, xAxis.y, xAxis.z) < 1e-9) xAxis = { x: 1, y: 0, z: 0 };
+      xAxis = normalizedVector(xAxis);
+      return {
+        x: xAxis,
+        y: normalizedVector(crossProduct(pole, xAxis)),
+        z: normalizedVector(pole)
+      };
+    }
+
+    function transformFromBasis(vector, basis) {
+      return {
+        x: basis.x.x * vector.x + basis.y.x * vector.y + basis.z.x * vector.z,
+        y: basis.x.y * vector.x + basis.y.y * vector.y + basis.z.y * vector.z,
+        z: basis.x.z * vector.x + basis.y.z * vector.y + basis.z.z * vector.z
+      };
+    }
+
+    function updateSatellite(body, daysSinceJ2000) {
+      const model = body.orbitModel;
+      // Most satellite tables use J2000; models with a newer fitted epoch
+      // (currently Nereid) subtract that epoch before advancing their phase.
+      const elapsedDays = daysSinceJ2000 -
+        ((model.epochJulianDate ?? 2451545) - 2451545);
+      const nodePrecession = model.nodeYears
+        ? -TAU * elapsedDays / (model.nodeYears * 365.25)
+        : 0;
+      const apsisPrecession = model.apsisYears
+        ? TAU * elapsedDays / (model.apsisYears * 365.25)
+        : 0;
+      const meanAnomaly = model.meanAnomaly * DEGREES_TO_RADIANS +
+        TAU * elapsedDays / model.periodDays;
+      const node = model.node * DEGREES_TO_RADIANS + nodePrecession;
+      const argumentOfPeriapsis = model.argumentOfPeriapsis * DEGREES_TO_RADIANS +
+        apsisPrecession;
+      const localElements = {
+        a: model.aKm,
+        e: model.e,
+        I: model.I * DEGREES_TO_RADIANS,
+        L: meanAnomaly + node + argumentOfPeriapsis,
+        peri: node + argumentOfPeriapsis,
+        node
+      };
+      const eccentricAnomaly = solveE(meanAnomaly, model.e);
+      const basis = body.referenceBasis;
+      const localPoint = anomaly => transformFromBasis(
+        pointWithScale(localElements, anomaly, 1),
+        basis
+      );
+      const p0 = localPoint(0);
+      const p1 = localPoint(Math.PI);
+      const p2 = localPoint(Math.PI / 2);
+      const p3 = localPoint(Math.PI * 1.5);
+      const localCenter = {
+        x: (p0.x + p1.x) / 2,
+        y: (p0.y + p1.y) / 2,
+        z: (p0.z + p1.z) / 2
+      };
+      const orbitA = {
+        x: (p0.x - p1.x) / 2,
+        y: (p0.y - p1.y) / 2,
+        z: (p0.z - p1.z) / 2
+      };
+      const orbitB = {
+        x: (p2.x - p3.x) / 2,
+        y: (p2.y - p3.y) / 2,
+        z: (p2.z - p3.z) / 2
+      };
+      const localPosition = localPoint(eccentricAnomaly);
+      body.position = {
+        x: body.parent.position.x + localPosition.x,
+        y: body.parent.position.y + localPosition.y,
+        z: body.parent.position.z + localPosition.z
+      };
+      body.orbit = {
+        center: {
+          x: body.parent.position.x + localCenter.x,
+          y: body.parent.position.y + localCenter.y,
+          z: body.parent.position.z + localCenter.z
+        },
+        a: orbitA,
+        b: orbitB
+      };
+      body.elements = {
+        a: model.aKm / AU_KM,
+        e: model.e,
+        I: localElements.I,
+        L: localElements.L,
+        peri: localElements.peri,
+        node: localElements.node
+      };
+      body.E = eccentricAnomaly;
+
+      const tangent = {
+        x: -orbitA.x * Math.sin(eccentricAnomaly) + orbitB.x * Math.cos(eccentricAnomaly),
+        y: -orbitA.y * Math.sin(eccentricAnomaly) + orbitB.y * Math.cos(eccentricAnomaly),
+        z: -orbitA.z * Math.sin(eccentricAnomaly) + orbitB.z * Math.cos(eccentricAnomaly)
+      };
+      const meanMotionPerSecond = TAU / (model.periodDays * SECONDS_PER_DAY);
+      const eccentricAnomalyRate = meanMotionPerSecond /
+        (1 - model.e * Math.cos(eccentricAnomaly));
+      body.speedKmPerSecond = Math.hypot(tangent.x, tangent.y, tangent.z) *
+        eccentricAnomalyRate;
+    }
+
+    function updateStellarPositions(date) {
+      const secondsSinceJ2000 = (date.getTime() - Date.UTC(2000, 0, 1, 12)) / 1_000;
+      for (const marker of stellarMarkers) {
+        marker.position = {
+          x: marker.positionAtJ2000.x + marker.heliocentricVelocity.x * secondsSinceJ2000,
+          y: marker.positionAtJ2000.y + marker.heliocentricVelocity.y * secondsSinceJ2000,
+          z: marker.positionAtJ2000.z + marker.heliocentricVelocity.z * secondsSinceJ2000
+        };
+        marker.pastPosition = {
+          x: marker.position.x - marker.galacticVelocity.x * stellarTrailSeconds,
+          y: marker.position.y - marker.galacticVelocity.y * stellarTrailSeconds,
+          z: marker.position.z - marker.galacticVelocity.z * stellarTrailSeconds
+        };
+      }
+    }
+
+    function updateEphemeris(date) {
+      const julianDate = date.getTime() / MILLISECONDS_PER_DAY + 2440587.5;
+      const daysSinceJ2000 = julianDate - 2451545.0;
+      updateStellarPositions(date);
+      // JPL's long-term planet model expresses every element as value at J2000
+      // plus a linear rate per Julian century.
+      const T = daysSinceJ2000 / DAYS_PER_JULIAN_CENTURY;
+      for (const body of orbitingBodies) {
+        body.elements = elements(body, T);
+        body.E = solveE(body.elements.L - body.elements.peri, body.elements.e);
+        body.position = point(body.elements, body.E);
+        const p0 = point(body.elements, 0),
+          p1 = point(body.elements, Math.PI);
+        const p2 = point(body.elements, Math.PI / 2),
+          p3 = point(body.elements, Math.PI * 1.5);
+        body.orbit = {
+          center: {
+            x: (p0.x + p1.x) / 2,
+            y: (p0.y + p1.y) / 2,
+            z: (p0.z + p1.z) / 2
+          },
+          a: {
+            x: (p0.x - p1.x) / 2,
+            y: (p0.y - p1.y) / 2,
+            z: (p0.z - p1.z) / 2
+          },
+          b: {
+            x: (p2.x - p3.x) / 2,
+            y: (p2.y - p3.y) / 2,
+            z: (p2.z - p3.z) / 2
+          }
+        };
+        const sinE = Math.sin(body.E);
+        const cosE = Math.cos(body.E);
+        const tangentPerRadian = {
+          x: -body.orbit.a.x * sinE + body.orbit.b.x * cosE,
+          y: -body.orbit.a.y * sinE + body.orbit.b.y * cosE,
+          z: -body.orbit.a.z * sinE + body.orbit.b.z * cosE
+        };
+        const meanMotionPerSecond = (
+          (body.rate[3] - body.rate[4]) * DEGREES_TO_RADIANS /
+          DAYS_PER_JULIAN_CENTURY /
+          SECONDS_PER_DAY
+        );
+        const eccentricAnomalyRate = meanMotionPerSecond / (1 - body.elements.e * cosE);
+        body.speedKmPerSecond = Math.hypot(
+          tangentPerRadian.x,
+          tangentPerRadian.y,
+          tangentPerRadian.z
+        ) * eccentricAnomalyRate;
+      }
+      for (const body of distantBodies) {
+        updateDistantSmallBody(body, julianDate);
+      }
+      bodies[0].position = {
+        x: 0,
+        y: 0,
+        z: 0
+      };
+      const totalMass = bodies.reduce((sum, b) => sum + b.mass, 0);
+      // Start with heliocentric positions, compute their mass-weighted centre,
+      // then subtract that vector from every body and orbit centre. The origin
+      // is therefore the displayed-system barycentre while orbit shapes remain
+      // heliocentric approximations.
+      const shift = bodies.reduce((r, b) => ({
+        x: r.x + b.mass * b.position.x / totalMass,
+        y: r.y + b.mass * b.position.y / totalMass,
+        z: r.z + b.mass * b.position.z / totalMass
+      }), {
+        x: 0,
+        y: 0,
+        z: 0
+      });
+      for (const body of bodies) {
+        body.position = {
+          x: body.position.x - shift.x,
+          y: body.position.y - shift.y,
+          z: body.position.z - shift.z
+        };
+      }
+      for (const body of orbitingBodies) {
+        body.orbit.center = {
+          x: body.orbit.center.x - shift.x,
+          y: body.orbit.center.y - shift.y,
+          z: body.orbit.center.z - shift.z
+        };
+      }
+      for (const body of distantBodies) {
+        body.position = {
+          x: body.position.x - shift.x,
+          y: body.position.y - shift.y,
+          z: body.position.z - shift.z
+        };
+        body.orbit.center = {
+          x: body.orbit.center.x - shift.x,
+          y: body.orbit.center.y - shift.y,
+          z: body.orbit.center.z - shift.z
+        };
+      }
+      for (const satellite of satelliteBodies) {
+        updateSatellite(satellite, daysSinceJ2000);
+      }
+
+      // The long-term Pluto elements closely represent the Pluto-system path.
+      // Charon is about 10.9% of the pair's mass, so the two bodies orbit a
+      // barycentre outside Pluto. Shift the complete local moon system with
+      // Pluto while preserving every moon's parent-relative orbit geometry.
+      const charonMass = 1.586e21;
+      const pairMassFraction = charonMass / (pluto.mass + charonMass);
+      const plutoOffset = {
+        x: -(charon.position.x - pluto.position.x) * pairMassFraction,
+        y: -(charon.position.y - pluto.position.y) * pairMassFraction,
+        z: -(charon.position.z - pluto.position.z) * pairMassFraction
+      };
+      pluto.position = {
+        x: pluto.position.x + plutoOffset.x,
+        y: pluto.position.y + plutoOffset.y,
+        z: pluto.position.z + plutoOffset.z
+      };
+      for (const moon of plutoMoons) {
+        moon.position = {
+          x: moon.position.x + plutoOffset.x,
+          y: moon.position.y + plutoOffset.y,
+          z: moon.position.z + plutoOffset.z
+        };
+        moon.orbit.center = {
+          x: moon.orbit.center.x + plutoOffset.x,
+          y: moon.orbit.center.y + plutoOffset.y,
+          z: moon.orbit.center.z + plutoOffset.z
+        };
+      }
+      minimumOrbitalSpeed = Infinity;
+      maximumOrbitalSpeed = -Infinity;
+      for (const body of renderedOrbitingBodies) {
+        minimumOrbitalSpeed = Math.min(minimumOrbitalSpeed, body.speedKmPerSecond);
+        maximumOrbitalSpeed = Math.max(maximumOrbitalSpeed, body.speedKmPerSecond);
+      }
+      document.getElementById("utc").textContent =
+        `Positions: ${date.toISOString().replace("T"," · ").replace(/\.\d{3}Z$/," UTC")}`;
+    }
+    const canvas = document.getElementById("view");
+    const labels = document.getElementById("labels");
+    const lctx = labels.getContext("2d");
+    const gl = canvas.getContext("webgl2", {
+      alpha: false,
+      antialias: true
+    });
+    if (!gl) {
+      document.getElementById("error").style.display = "grid";
+      return;
+    }
+
+    // One instanced-style quad is reused for every ellipse and disc. u_basis
+    // maps its local [-1,1] square into a projected ellipse bounding box.
+    const vertex = `#version 300 es
+      in vec2 a_corner;
+      uniform vec2 u_center;
+      uniform mat2 u_basis;
+      uniform vec2 u_viewport;
+      uniform float u_padding;
+      out vec2 v_local;
+      void main(){
+        v_local=a_corner*(1.0+u_padding);
+        vec2 p=u_center+u_basis*v_local;
+        gl_Position=vec4(p.x/u_viewport.x*2.0-1.0,1.0-p.y/u_viewport.y*2.0,0.0,1.0);
+      }`;
+    // Mode 0 draws an antialiased analytic ellipse. Its local polar angle
+    // clips the speed-dependent tail and its local depth dot product supplies
+    // near/far brightness. Mode 1 draws a filled disc; mode 2 draws a filled
+    // annulus, used for physically broad planetary ring bands.
+    const fragment = `#version 300 es
+      precision highp float;
+      in vec2 v_local;
+      uniform vec4 u_color;
+      uniform int u_mode;
+      uniform vec2 u_depthBasis;
+      uniform float u_arcEnd;
+      uniform float u_arcSpan;
+      uniform float u_arcFade;
+      uniform float u_innerRadius;
+      out vec4 outColor;
+      void main(){
+        float alpha;
+        if(u_mode==0){
+          float arcMultiplier=1.0;
+          if(u_arcSpan<6.28318530718){
+            float angle=atan(v_local.y,v_local.x);
+            if(angle<0.0) angle+=6.28318530718;
+            float behind=mod(u_arcEnd-angle+6.28318530718,6.28318530718);
+            if(behind>u_arcSpan) discard;
+            float fadeStart=u_arcSpan-u_arcFade;
+            arcMultiplier=1.0-smoothstep(fadeStart,u_arcSpan,behind);
+          }
+          float f=dot(v_local,v_local)-1.0;
+          float aa=max(fwidth(f),0.000001);
+          alpha=1.0-smoothstep(aa*0.2,aa*1.2,abs(f));
+          float nearAmount=smoothstep(-1.0,1.0,dot(u_depthBasis,v_local));
+          alpha*=mix(0.28,1.0,nearAmount);
+          alpha*=arcMultiplier;
+        } else if(u_mode==1) {
+          float d=length(v_local)-1.0;
+          float aa=max(fwidth(d),0.000001);
+          alpha=1.0-smoothstep(-aa,aa,d);
+        } else {
+          float d=length(v_local);
+          float aa=max(fwidth(d),0.000001);
+          float outer=1.0-smoothstep(1.0-aa,1.0+aa,d);
+          float inner=smoothstep(u_innerRadius-aa,u_innerRadius+aa,d);
+          float nearAmount=smoothstep(-1.0,1.0,dot(u_depthBasis,v_local));
+          alpha=outer*inner*mix(0.55,1.0,nearAmount);
+        }
+        if(alpha<=0.0) discard;
+        outColor=vec4(u_color.rgb,u_color.a*alpha);
+      }`;
+
+    function shader(type, source) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    const program = gl.createProgram();
+    gl.attachShader(program, shader(gl.VERTEX_SHADER, vertex));
+    gl.attachShader(program, shader(gl.FRAGMENT_SHADER, fragment));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(
+      program));
+    gl.useProgram(program);
+
+    const corners = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, corners, gl.STATIC_DRAW);
+    const aCorner = gl.getAttribLocation(program, "a_corner");
+    gl.enableVertexAttribArray(aCorner);
+    gl.vertexAttribPointer(aCorner, 2, gl.FLOAT, false, 0, 0);
+    const uCenter = gl.getUniformLocation(program, "u_center");
+    const uBasis = gl.getUniformLocation(program, "u_basis");
+    const uViewport = gl.getUniformLocation(program, "u_viewport");
+    const uPadding = gl.getUniformLocation(program, "u_padding");
+    const uColor = gl.getUniformLocation(program, "u_color");
+    const uMode = gl.getUniformLocation(program, "u_mode");
+    const uDepthBasis = gl.getUniformLocation(program, "u_depthBasis");
+    const uArcEnd = gl.getUniformLocation(program, "u_arcEnd");
+    const uArcSpan = gl.getUniformLocation(program, "u_arcSpan");
+    const uArcFade = gl.getUniformLocation(program, "u_arcFade");
+    const uInnerRadius = gl.getUniformLocation(program, "u_innerRadius");
+    const basisUpload = new Float32Array(4);
+    const depthBasisUpload = new Float32Array(2);
+    const zeroDepthBasis = [0, 0];
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    let w = 1;
+    let h = 1;
+    let dpr = 1;
+    let kmPerPixel = 1;
+    let centerX = 0;
+    let centerY = 0;
+    // A persistent world-space point underneath the viewport centre. Camera
+    // rotations re-project this point instead of rotating around the origin or
+    // around stale 2D coordinates, which is essential at close zoom levels.
+    let viewPivot = { x: 0, y: 0, z: 0 };
+    let dragging = false;
+    let dragMode = "pan";
+    let lastX = 0;
+    let lastY = 0;
+    let cameraOrientation = { x: 0, y: 0, z: 0, w: 1 };
+    let cameraRight = { x: 1, y: 0, z: 0 };
+    let cameraUp = { x: 0, y: 1, z: 0 };
+    let cameraForward = { x: 0, y: 0, z: 1 };
+    let orbitDragDistance = 0;
+    let previousRightClick = null;
+    const activeTouches = new Map();
+    let previousPinchDistance = 0;
+    let previousPinchCenter = null;
+    let softPivotBody = null;
+    let pivotScreenAnchor = null;
+    let freeFlightOrigin = { x: 0, y: 0, z: 0 };
+    const scaleLabel = document.getElementById("scale");
+    const fmt = new Intl.NumberFormat("en-CA", {
+      maximumFractionDigits: 2
+    });
+    const themeButton = document.getElementById("themeToggle");
+    const renderThemes = {
+      dark: {
+        background: [.035, .043, .063, 1],
+        orbit: [.48, .56, .67, .62],
+        labelText: "#f2f5f8",
+        labelLine: "rgba(180,193,209,.55)",
+        labelBackground: "rgba(17,21,29,.91)",
+        stellarMarker: "#7ddcff",
+        galacticMarker: "#ff9bcf",
+        stellarTrail: "rgba(65,190,232,.72)",
+        stellarTrailTransparent: "rgba(65,190,232,0)",
+        sunTrail: "rgba(255,197,80,.80)",
+        sunTrailTransparent: "rgba(255,197,80,0)",
+        saturnRings: [.72, .66, .52, .52],
+        neptuneRings: [.42, .63, .76, .26]
+      },
+      light: {
+        background: [.851, .882, .910, 1],
+        orbit: [.22, .30, .40, .72],
+        labelText: "#172331",
+        labelLine: "rgba(55,72,92,.58)",
+        labelBackground: "rgba(243,246,248,.92)",
+        stellarMarker: "#08789c",
+        galacticMarker: "#a52b68",
+        stellarTrail: "rgba(8,120,156,.62)",
+        stellarTrailTransparent: "rgba(8,120,156,0)",
+        sunTrail: "rgba(166,104,0,.75)",
+        sunTrailTransparent: "rgba(166,104,0,0)",
+        saturnRings: [.42, .35, .24, .58],
+        neptuneRings: [.20, .39, .54, .30]
+      }
+    };
+    let isLightTheme = true;
+    let selectedBody = null;
+    let followSelection = false;
+    let focusAnimationFrame = 0;
+    let panDragDistance = 0;
+    let labelHitTargets = [];
+    const selectionCard = document.getElementById("selectionCard");
+    const selectionName = document.getElementById("selectionName");
+    const selectionDetails = document.getElementById("selectionDetails");
+
+    function currentRenderTheme() {
+      return isLightTheme ? renderThemes.light : renderThemes.dark;
+    }
+
+    function formattedDistancePerPixel(distanceKm) {
+      if (distanceKm >= LIGHT_YEAR_KM * .01) {
+        return `${fmt.format(distanceKm / LIGHT_YEAR_KM)} ly`;
+      }
+      if (distanceKm >= AU_KM * .1) {
+        return `${fmt.format(distanceKm / AU_KM)} AU`;
+      }
+      return `${fmt.format(distanceKm)} km`;
+    }
+
+    function toggleTheme() {
+      isLightTheme = !isLightTheme;
+      document.documentElement.dataset.theme = isLightTheme ? "light" : "dark";
+      const actionLabel = isLightTheme ? "Switch to dark theme" : "Switch to light theme";
+      themeButton.textContent = isLightTheme ? "☾" : "☀";
+      themeButton.title = actionLabel;
+      themeButton.setAttribute("aria-label", actionLabel);
+      draw();
+    }
+
+    function multiplyQuaternions(first, second) {
+      return {
+        x: first.w * second.x + first.x * second.w + first.y * second.z - first.z * second.y,
+        y: first.w * second.y - first.x * second.z + first.y * second.w + first.z * second.x,
+        z: first.w * second.z + first.x * second.y - first.y * second.x + first.z * second.w,
+        w: first.w * second.w - first.x * second.x - first.y * second.y - first.z * second.z
+      };
+    }
+
+    function normalizedQuaternion(quaternion) {
+      const length = Math.hypot(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+      return {
+        x: quaternion.x / length,
+        y: quaternion.y / length,
+        z: quaternion.z / length,
+        w: quaternion.w / length
+      };
+    }
+
+    function axisAngleQuaternion(axis, angle) {
+      const halfAngle = angle / 2;
+      const scale = Math.sin(halfAngle);
+      return {
+        x: axis.x * scale,
+        y: axis.y * scale,
+        z: axis.z * scale,
+        w: Math.cos(halfAngle)
+      };
+    }
+
+    function rotateVectorByQuaternion(vector, quaternion) {
+      const qVector = { x: quaternion.x, y: quaternion.y, z: quaternion.z };
+      const crossX = qVector.y * vector.z - qVector.z * vector.y;
+      const crossY = qVector.z * vector.x - qVector.x * vector.z;
+      const crossZ = qVector.x * vector.y - qVector.y * vector.x;
+      const secondCrossX = qVector.y * crossZ - qVector.z * crossY;
+      const secondCrossY = qVector.z * crossX - qVector.x * crossZ;
+      const secondCrossZ = qVector.x * crossY - qVector.y * crossX;
+
+      return {
+        x: vector.x + 2 * (quaternion.w * crossX + secondCrossX),
+        y: vector.y + 2 * (quaternion.w * crossY + secondCrossY),
+        z: vector.z + 2 * (quaternion.w * crossZ + secondCrossZ)
+      };
+    }
+
+    function updateCameraAxes() {
+      // The quaternion stores camera-local axes expressed in ecliptic-world
+      // coordinates. Dot products with these axes perform orthographic view
+      // projection without Euler-angle pole singularities.
+      cameraRight = rotateVectorByQuaternion({ x: 1, y: 0, z: 0 }, cameraOrientation);
+      cameraUp = rotateVectorByQuaternion({ x: 0, y: 1, z: 0 }, cameraOrientation);
+      cameraForward = rotateVectorByQuaternion({ x: 0, y: 0, z: 1 }, cameraOrientation);
+    }
+
+    function alignViewPivotToAnchor() {
+      const projectedPivot = projectedVector(viewPivot);
+      const anchor = pivotScreenAnchor ?? { x: w / 2, y: h / 2 };
+      centerX = projectedPivot.x - (anchor.x - w / 2) * kmPerPixel;
+      centerY = projectedPivot.y + (anchor.y - h / 2) * kmPerPixel;
+    }
+
+    function centerOnViewPivot() {
+      pivotScreenAnchor = { x: w / 2, y: h / 2 };
+      alignViewPivotToAnchor();
+    }
+
+    function synchronizePivotToCenter() {
+      // Orthographic projection loses depth. Preserve the pivot's current
+      // camera-depth coordinate and move it only along camera-right/up until
+      // its projection equals the panned or cursor-anchored 2D centre.
+      const projectedPivot = projectedVector(viewPivot);
+      const rightShift = centerX - projectedPivot.x;
+      const upShift = centerY - projectedPivot.y;
+      viewPivot = {
+        x: viewPivot.x + cameraRight.x * rightShift + cameraUp.x * upShift,
+        y: viewPivot.y + cameraRight.y * rightShift + cameraUp.y * upShift,
+        z: viewPivot.z + cameraRight.z * rightShift + cameraUp.z * upShift
+      };
+      pivotScreenAnchor = { x: w / 2, y: h / 2 };
+    }
+
+    function releaseToFreeFlight() {
+      softPivotBody = null;
+      followSelection = false;
+      synchronizePivotToCenter();
+      freeFlightOrigin = { ...viewPivot };
+    }
+
+    function resetCameraOrientation() {
+      cameraOrientation = axisAngleQuaternion(
+        { x: 1, y: 0, z: 0 },
+        Math.PI / 4
+      );
+      updateCameraAxes();
+      centerOnViewPivot();
+    }
+
+    function rotationScaleFraction() {
+      // Use the same continuous physical scale that drives the scale bar.
+      // Logarithmic normalization is essential because this viewer spans more
+      // than eleven orders of magnitude, from satellites to nearby stars.
+      const minimumScale = 10;
+      const neighbourhoodDiameter = 2 * farthestStellarDistanceKm;
+      const maximumScale = 4 * neighbourhoodDiameter /
+        Math.max(100, Math.min(w, h));
+      const logarithmicFraction = Math.log(kmPerPixel / minimumScale) /
+        Math.log(maximumScale / minimumScale);
+      const clamped = Math.min(1, Math.max(0, logarithmicFraction));
+
+      // Smoothstep gives fine control at close scales without introducing a
+      // plateau; sensitivity still changes continuously at every zoom level.
+      return clamped * clamped * (3 - 2 * clamped);
+    }
+
+    function rotationSensitivity() {
+      const scaleFraction = rotationScaleFraction();
+      return MIN_ROTATION_RADIANS_PER_PIXEL +
+        (MAX_ROTATION_RADIANS_PER_PIXEL - MIN_ROTATION_RADIANS_PER_PIXEL) *
+        scaleFraction;
+    }
+
+    function orbitCamera(horizontalDelta, verticalDelta) {
+      const sensitivity = rotationSensitivity();
+      const aroundEclipticZ = axisAngleQuaternion(
+        { x: 0, y: 0, z: 1 },
+        -horizontalDelta * sensitivity
+      );
+      const aroundCameraRight = axisAngleQuaternion(
+        { x: 1, y: 0, z: 0 },
+        -verticalDelta * sensitivity
+      );
+
+      cameraOrientation = normalizedQuaternion(
+        multiplyQuaternions(
+          multiplyQuaternions(aroundEclipticZ, cameraOrientation),
+          aroundCameraRight
+        )
+      );
+      updateCameraAxes();
+      // Keep the active pivot fixed at its screen anchor. Selected and ordinary
+      // free-flight pivots use viewport centre; a soft pivot remains beneath
+      // the cursor position at which the body was acquired.
+      alignViewPivotToAnchor();
+    }
+
+    function projected(x, y, z = 0) {
+      return {
+        x: x * cameraRight.x + y * cameraRight.y + z * cameraRight.z,
+        y: x * cameraUp.x + y * cameraUp.y + z * cameraUp.z
+      };
+    }
+
+    function projectedVector(v) {
+      return projected(v.x, v.y, v.z);
+    }
+
+    function cameraDepth(v) {
+      return v.x * cameraForward.x + v.y * cameraForward.y + v.z * cameraForward.z;
+    }
+
+    function screen(x, y, z = 0) {
+      // kmPerPixel is the single continuous physical scale. Subtracting the
+      // camera centre implements chart panning; division performs zoom.
+      const p = projected(x, y, z);
+      return {
+        x: w / 2 + (p.x - centerX) / kmPerPixel,
+        y: h / 2 - (p.y - centerY) / kmPerPixel
+      };
+    }
+
+    function world(x, y) {
+      return {
+        x: centerX + (x - w / 2) * kmPerPixel,
+        y: centerY - (y - h / 2) * kmPerPixel
+      };
+    }
+
+    function safeExtent(m) {
+      return Math.hypot(m[0], m[1], m[2], m[3]);
+    }
+
+    function drawQuad(
+      cx,
+      cy,
+      m,
+      color,
+      mode,
+      depthBasis = zeroDepthBasis,
+      arcEnd = 0,
+      arcSpan = TAU,
+      arcFade = 0,
+      innerRadius = 0
+    ) {
+      const extent = safeExtent(m);
+      if (cx + extent < 0 || cx - extent > w || cy + extent < 0 || cy - extent > h) return;
+      gl.uniform2f(uCenter, cx * dpr, cy * dpr);
+      basisUpload[0] = m[0] * dpr;
+      basisUpload[1] = m[1] * dpr;
+      basisUpload[2] = m[2] * dpr;
+      basisUpload[3] = m[3] * dpr;
+      depthBasisUpload[0] = depthBasis[0];
+      depthBasisUpload[1] = depthBasis[1];
+      gl.uniformMatrix2fv(uBasis, false, basisUpload);
+      gl.uniform1f(uPadding, Math.min(4, 2 / Math.max(extent, 0.5)));
+      gl.uniform4fv(uColor, color);
+      gl.uniform1i(uMode, mode);
+      gl.uniform2fv(uDepthBasis, depthBasisUpload);
+      gl.uniform1f(uArcEnd, arcEnd);
+      gl.uniform1f(uArcSpan, arcSpan);
+      gl.uniform1f(uArcFade, arcFade);
+      gl.uniform1f(uInnerRadius, innerRadius);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    function overlaps(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function shouldShowSolarSystemLabel(body, viewportSpanKm) {
+      if (body === bodies[0]) return true;
+      if (body === selectedBody) return true;
+      const viewportSpanAu = viewportSpanKm / AU_KM;
+      if (body === barycenter) return viewportSpanAu < 15;
+      if (!body.elements) return false;
+
+      if (body.parentName) {
+        const activeSystem = selectedBody && (selectedBody.parentName ?? selectedBody.name);
+        if (activeSystem === body.parentName) {
+          const siblings = satellitesByParent.get(body.parentName);
+          const systemExtent = Math.max(...siblings.map(moon =>
+            moon.orbitModel.aKm * (1 + moon.orbitModel.e)
+          ));
+          const detail = systemExtent / viewportSpanKm;
+          const visibleCount = detail < .20 ? 1 : detail < .40 ? 3 : detail < .75 ? 6 : siblings.length;
+          return siblings.indexOf(body) < visibleCount;
+        }
+      }
+
+      // Reveal labels progressively by orbital extent, not current projected
+      // position. This keeps the order stable even when, for example, Pluto is
+      // temporarily nearer to the Sun than Neptune.
+      const orbitalOuterRadiusAu = body.elements.a * (1 + body.elements.e);
+      return orbitalOuterRadiusAu / viewportSpanAu >= .0115;
+    }
+
+    function formatDistance(distanceKm) {
+      if (distanceKm >= LIGHT_YEAR_KM * .01) return `${fmt.format(distanceKm / LIGHT_YEAR_KM)} ly`;
+      if (distanceKm >= AU_KM * .1) return `${fmt.format(distanceKm / AU_KM)} AU`;
+      return `${fmt.format(distanceKm)} km`;
+    }
+
+    function formatPeriod(days) {
+      if (!Number.isFinite(days)) return "—";
+      if (days >= 365.25 * 2) return `${fmt.format(days / 365.25)} yr`;
+      if (days < 1) return `${fmt.format(days * 24)} h`;
+      return `${fmt.format(days)} days`;
+    }
+
+    function selectedBodyParent(body) {
+      if (body.parent) return body.parent;
+      return body === bodies[0] ? null : bodies[0];
+    }
+
+    function orbitalPeriodDays(body) {
+      if (body.orbitModel) return body.orbitModel.periodDays;
+      if (body.smallBodyElements) return 365.25 * Math.pow(body.elements.a, 1.5);
+      if (body.rate) {
+        const meanMotionPerCentury = Math.abs(body.rate[3] - body.rate[4]);
+        return 360 * DAYS_PER_JULIAN_CENTURY / meanMotionPerCentury;
+      }
+      return NaN;
+    }
+
+    function updateSelectionCard() {
+      if (!selectedBody) {
+        selectionCard.hidden = true;
+        return;
+      }
+      const parent = selectedBodyParent(selectedBody);
+      const distance = parent ? Math.hypot(
+        selectedBody.position.x - parent.position.x,
+        selectedBody.position.y - parent.position.y,
+        selectedBody.position.z - parent.position.z
+      ) : 0;
+      const speed = selectedBody.speedKmPerSecond;
+      const rows = [
+        ["Type", selectedBody.parentName
+          ? `Moon of ${selectedBody.parentName}`
+          : selectedBody === sun ? "Star" : "Solar-system body"],
+        ["Radius", formatDistance(selectedBody.radius)],
+        parent ? [`Distance from ${parent.name}`, formatDistance(distance)] : null,
+        Number.isFinite(speed) ? ["Orbital speed", `${fmt.format(speed)} km/s`] : null,
+        selectedBody !== bodies[0] ? ["Orbital period", formatPeriod(orbitalPeriodDays(selectedBody))] : null,
+        selectedBody.orbitModel ? ["Direction", selectedBody.orbitModel.I > 90 ? "Retrograde" : "Prograde"] : null
+      ].filter(Boolean);
+      selectionName.textContent = selectedBody.name;
+      selectionDetails.innerHTML = rows.map(([term, value]) =>
+        `<dt>${term}</dt><dd>${value}</dd>`
+      ).join("");
+      selectionCard.hidden = false;
+    }
+
+    function systemExtentKm(body) {
+      const systemName = body.parentName ?? body.name;
+      const satellites = satellitesByParent.get(systemName) ?? [];
+      if (satellites.length) return Math.max(...satellites.map(moon =>
+        moon.orbitModel.aKm * (1 + moon.orbitModel.e)
+      ));
+      if (body.parentName) return body.orbitModel.aKm * (1 + body.orbitModel.e);
+      if (body === bodies[0]) {
+        // The dedicated Outer button already fits the whole planetary system;
+        // the Sun shortcut instead lands at a useful inner-system scale.
+        return mars.elements.a * (1 + mars.elements.e) * AU_KM;
+      }
+      return Math.max(body.radius * 12, 10_000);
+    }
+
+    function focusBody(body, animate = true, fitToSystem = false) {
+      if (!body) return;
+      softPivotBody = null;
+      selectedBody = body;
+      followSelection = true;
+      updateSelectionCard();
+      const targetPivot = { ...body.position };
+      const targetScale = fitToSystem
+        ? Math.max(10, 2.5 * systemExtentKm(body) / Math.max(120, Math.min(w, h) - 100))
+        : kmPerPixel;
+      synchronizePivotToCenter();
+      const startPivot = { ...viewPivot };
+      const startScale = kmPerPixel;
+      const startTime = performance.now();
+      cancelAnimationFrame(focusAnimationFrame);
+      const step = now => {
+        const t = animate ? Math.min(1, (now - startTime) / 550) : 1;
+        const eased = 1 - Math.pow(1 - t, 3);
+        viewPivot = {
+          x: startPivot.x + (targetPivot.x - startPivot.x) * eased,
+          y: startPivot.y + (targetPivot.y - startPivot.y) * eased,
+          z: startPivot.z + (targetPivot.z - startPivot.z) * eased
+        };
+        centerOnViewPivot();
+        kmPerPixel = Math.exp(Math.log(startScale) + (Math.log(targetScale) - Math.log(startScale)) * eased);
+        draw();
+        if (t < 1) {
+          focusAnimationFrame = requestAnimationFrame(step);
+        } else {
+          focusAnimationFrame = 0;
+          freeFlightOrigin = { ...viewPivot };
+        }
+      };
+      focusAnimationFrame = requestAnimationFrame(step);
+    }
+
+    function selectBodyAt(x, y) {
+      const labelTarget = [...labelHitTargets].reverse().find(target =>
+        x >= target.x && x <= target.x + target.w &&
+        y >= target.y && y <= target.y + target.h
+      );
+      if (labelTarget) {
+        focusBody(labelTarget.body);
+        return;
+      }
+      let best = null;
+      let bestDistance = 18;
+      for (const body of renderedBodies) {
+        const point = screen(body.position.x, body.position.y, body.position.z);
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (distance < bestDistance) {
+          best = body;
+          bestDistance = distance;
+        }
+      }
+      if (best) focusBody(best);
+    }
+
+    function bodyNearScreenPoint(x, y) {
+      let nearestBody = null;
+      let nearestDistance = Infinity;
+      for (const body of renderedBodies) {
+        const point = screen(body.position.x, body.position.y, body.position.z);
+        const hitRadius = Math.min(32, Math.max(16, body.radius / kmPerPixel + 10));
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (distance <= hitRadius && distance < nearestDistance) {
+          nearestBody = body;
+          nearestDistance = distance;
+        }
+      }
+      if (nearestBody) return nearestBody;
+
+      // Labels are generous fallback targets when the physical body itself is
+      // still sub-pixel at the current scale. Direct marker proximity wins so
+      // overlapping inner-system labels cannot capture the wrong body.
+      const labelTarget = [...labelHitTargets].reverse().find(target =>
+        x >= target.x - 4 && x <= target.x + target.w + 4 &&
+        y >= target.y - 4 && y <= target.y + target.h + 4
+      );
+      return labelTarget?.body ?? null;
+    }
+
+    function drawScaleBar(theme) {
+      const targetKm = kmPerPixel * Math.min(130, Math.max(70, w * .10));
+      const magnitude = Math.pow(10, Math.floor(Math.log10(targetKm)));
+      const normalized = targetKm / magnitude;
+      const nice = normalized >= 5 ? 5 : normalized >= 2 ? 2 : 1;
+      const distanceKm = nice * magnitude;
+      const length = distanceKm / kmPerPixel;
+      const x = Math.max(14, w / 2 - length / 2);
+      const y = h - 18;
+      lctx.strokeStyle = theme.labelText;
+      lctx.fillStyle = theme.labelText;
+      lctx.lineWidth = 2;
+      lctx.beginPath();
+      lctx.moveTo(x, y - 5); lctx.lineTo(x, y); lctx.lineTo(x + length, y); lctx.lineTo(x + length, y - 5);
+      lctx.stroke();
+      lctx.textAlign = "center";
+      lctx.fillText(formatDistance(distanceKm), x + length / 2, y - 10);
+      lctx.textAlign = "start";
+    }
+
+    function drawCollisionAwareLabel(anchor, text, textColor, theme, occupied, drawLeader,
+      hitTarget = null) {
+      const boxWidth = lctx.measureText(text).width + 9;
+      const placements = [
+        { x: anchor.x + 8, y: anchor.y - 9 },
+        { x: anchor.x - boxWidth - 8, y: anchor.y - 9 },
+        { x: anchor.x + 8, y: anchor.y - 28 },
+        { x: anchor.x - boxWidth - 8, y: anchor.y - 28 },
+        { x: anchor.x + 8, y: anchor.y + 10 },
+        { x: anchor.x - boxWidth - 8, y: anchor.y + 10 }
+      ];
+      let box = null;
+      for (const position of placements) {
+        const candidate = { ...position, w: boxWidth, h: 18 };
+        const fitsViewport =
+          candidate.x >= 3 && candidate.x + candidate.w <= w - 3 &&
+          candidate.y >= 3 && candidate.y + candidate.h <= h - 3;
+        if (fitsViewport && !occupied.some(existing => overlaps(candidate, existing))) {
+          box = candidate;
+          break;
+        }
+      }
+      if (!box) return false;
+      occupied.push(box);
+      if (hitTarget) labelHitTargets.push({ ...box, body: hitTarget });
+
+      if (drawLeader) {
+        const edgeX = box.x > anchor.x ? box.x : box.x + box.w;
+        const edgeY = box.y + box.h / 2;
+        lctx.beginPath();
+        lctx.moveTo(anchor.x, anchor.y);
+        lctx.lineTo(edgeX, edgeY);
+        lctx.strokeStyle = theme.labelLine;
+        lctx.lineWidth = 1;
+        lctx.stroke();
+      }
+
+      lctx.fillStyle = theme.labelBackground;
+      lctx.fillRect(box.x, box.y, box.w, box.h);
+      lctx.fillStyle = textColor;
+      lctx.fillText(text, box.x + 4, box.y + 9);
+      return true;
+    }
+
+    function drawPastMotionTrail(pastPosition, presentPosition, solidColor, transparentColor,
+      approximate) {
+      const past = screen(pastPosition.x, pastPosition.y, pastPosition.z);
+      const present = screen(presentPosition.x, presentPosition.y, presentPosition.z);
+      if (Math.hypot(present.x - past.x, present.y - past.y) < 1) return;
+
+      const gradient = lctx.createLinearGradient(past.x, past.y, present.x, present.y);
+      gradient.addColorStop(0, transparentColor);
+      gradient.addColorStop(.10, solidColor);
+      gradient.addColorStop(1, solidColor);
+      lctx.beginPath();
+      lctx.moveTo(past.x, past.y);
+      lctx.lineTo(present.x, present.y);
+      lctx.strokeStyle = gradient;
+      lctx.lineWidth = 1.5;
+      lctx.setLineDash(approximate ? [5, 4] : []);
+      lctx.stroke();
+      lctx.setLineDash([]);
+    }
+
+    function drawGalacticMotionTrails(theme, viewportSpanKm) {
+      // Below half a light-year these lines would cross the Solar-System view
+      // without useful stellar context, so the layer is scale-suppressed.
+      if (viewportSpanKm < LIGHT_YEAR_KM * .5) return;
+
+      const sun = bodies[0].position;
+      drawPastMotionTrail(
+        {
+          x: sun.x + sunPastGalacticPosition.x,
+          y: sun.y + sunPastGalacticPosition.y,
+          z: sun.z + sunPastGalacticPosition.z
+        },
+        sun,
+        theme.sunTrail,
+        theme.sunTrailTransparent,
+        false
+      );
+      for (const marker of stellarMarkers) {
+        drawPastMotionTrail(
+          marker.pastPosition,
+          marker.position,
+          theme.stellarTrail,
+          theme.stellarTrailTransparent,
+          marker.motionApproximate === true
+        );
+      }
+    }
+
+    function drawLabels() {
+      const theme = currentRenderTheme();
+      lctx.clearRect(0, 0, w, h);
+      lctx.font = "12px system-ui, sans-serif";
+      lctx.textBaseline = "middle";
+      const occupied = [];
+      labelHitTargets = [];
+      const solarSystemOrigin = screen(0, 0, 0);
+      const viewportRadius = Math.min(w, h) * kmPerPixel / 2;
+      const viewportSpanKm = Math.min(w, h) * kmPerPixel;
+      const sednaAphelion = sedna.elements.a * (1 + sedna.elements.e) * AU_KM;
+
+      drawGalacticMotionTrails(theme, viewportSpanKm);
+
+      for (const marker of celestialMarkers) {
+        let s;
+        if (marker.position) {
+          s = screen(marker.position.x, marker.position.y, marker.position.z);
+        } else {
+          if (viewportRadius < sednaAphelion) continue;
+          const direction = projectedVector(marker.direction);
+          const directionalRadius = Math.min(w, h) * .43;
+          s = {
+            x: solarSystemOrigin.x + direction.x * directionalRadius,
+            y: solarSystemOrigin.y - direction.y * directionalRadius
+          };
+        }
+        if (s.x < -100 || s.x > w + 100 || s.y < -50 || s.y > h + 50) continue;
+
+        const markerColor = marker.type === "galactic-center"
+          ? theme.galacticMarker
+          : theme.stellarMarker;
+        lctx.fillStyle = markerColor;
+        lctx.beginPath();
+        lctx.arc(s.x, s.y, marker.type === "galactic-center" ? 4 : 3, 0, TAU);
+        lctx.fill();
+
+        const displayedDistanceLy = marker.distanceLy ?? marker.labelDistanceLy;
+        const suffix = displayedDistanceLy ? ` · ${fmt.format(displayedDistanceLy)} ly` : "";
+        const text = marker.name + suffix;
+        drawCollisionAwareLabel(s, text, markerColor, theme, occupied, false);
+      }
+
+      const sunScreen = screen(
+        bodies[0].position.x,
+        bodies[0].position.y,
+        bodies[0].position.z
+      );
+      const visible = [...renderedBodies, barycenter]
+        .map(body => ({
+          body,
+          s: screen(body.position.x, body.position.y, body.position.z)
+        }))
+        .filter(item =>
+          item.s.x > -80 && item.s.x < w + 80 &&
+          item.s.y > -40 && item.s.y < h + 40
+        )
+        .sort((first, second) => {
+          if (first.body === bodies[0]) return -1;
+          if (second.body === bodies[0]) return 1;
+          const firstOrbitExtent = first.body.elements
+            ? first.body.elements.a * (1 + first.body.elements.e)
+            : -1;
+          const secondOrbitExtent = second.body.elements
+            ? second.body.elements.a * (1 + second.body.elements.e)
+            : -1;
+          return secondOrbitExtent - firstOrbitExtent;
+        });
+
+      for (const { body, s } of visible) {
+        if (!shouldShowSolarSystemLabel(body, viewportSpanKm)) continue;
+        if (body === barycenter) {
+          lctx.fillStyle = theme.labelText;
+          lctx.beginPath();
+          lctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+          lctx.fill();
+
+          const distanceFromSun = Math.hypot(s.x - sunScreen.x, s.y - sunScreen.y);
+          if (distanceFromSun < 14) continue;
+        }
+
+        drawCollisionAwareLabel(
+          s,
+          body.name,
+          theme.labelText,
+          theme,
+          occupied,
+          true,
+          body === barycenter ? null : body
+        );
+      }
+
+      if (selectedBody) {
+        const selected = screen(
+          selectedBody.position.x,
+          selectedBody.position.y,
+          selectedBody.position.z
+        );
+        lctx.strokeStyle = theme.stellarMarker;
+        lctx.lineWidth = 1.5;
+        lctx.beginPath();
+        lctx.arc(selected.x, selected.y, Math.max(7, selectedBody.radius / kmPerPixel + 5), 0, TAU);
+        lctx.stroke();
+      }
+
+      drawScaleBar(theme);
+    }
+
+    function drawRingBand(planet, basis, innerRadiusKm, outerRadiusKm, color) {
+      if (outerRadiusKm / kmPerPixel < 2) return;
+      const centre = screen(planet.position.x, planet.position.y, planet.position.z);
+      const worldA = transformFromBasis({ x: outerRadiusKm, y: 0, z: 0 }, basis);
+      const worldB = transformFromBasis({ x: 0, y: outerRadiusKm, z: 0 }, basis);
+      const a = projectedVector(worldA);
+      const b = projectedVector(worldB);
+      const ad = cameraDepth(worldA);
+      const bd = cameraDepth(worldB);
+      const depthScale = Math.hypot(ad, bd) || 1;
+      drawQuad(
+        centre.x,
+        centre.y,
+        [a.x / kmPerPixel, -a.y / kmPerPixel, b.x / kmPerPixel, -b.y / kmPerPixel],
+        color,
+        2,
+        [ad / depthScale, bd / depthScale],
+        0,
+        TAU,
+        0,
+        innerRadiusKm / outerRadiusKm
+      );
+    }
+
+    const saturnRingBasis = satelliteReferenceBasis({
+      referencePlane: "laplace",
+      laplacePoleRa: 40.6,
+      laplacePoleDec: 83.5
+    });
+    const neptuneRingBasis = satelliteReferenceBasis({
+      referencePlane: "laplace",
+      laplacePoleRa: 299.8,
+      laplacePoleDec: 43.1
+    });
+
+    function drawPlanetaryRings(theme) {
+      // Broad C, B, and A rings. Leaving the Cassini Division empty makes the
+      // structure read as a disc rather than as another set of orbital paths.
+      drawRingBand(saturn, saturnRingBasis, 74_700, 92_000,
+        [...theme.saturnRings.slice(0, 3), theme.saturnRings[3] * .55]);
+      drawRingBand(saturn, saturnRingBasis, 92_000, 117_600, theme.saturnRings);
+      drawRingBand(saturn, saturnRingBasis, 122_200, 136_800,
+        [...theme.saturnRings.slice(0, 3), theme.saturnRings[3] * .82]);
+
+      // Neptune's rings are narrow, dark and much fainter than Saturn's.
+      drawRingBand(neptune, neptuneRingBasis, 41_900, 42_900, theme.neptuneRings);
+      drawRingBand(neptune, neptuneRingBasis, 53_100, 57_200,
+        [...theme.neptuneRings.slice(0, 3), theme.neptuneRings[3] * .55]);
+      drawRingBand(neptune, neptuneRingBasis, 62_800, 63_050, theme.neptuneRings);
+    }
+
+    function draw() {
+      const theme = currentRenderTheme();
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(...theme.background);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform2f(uViewport, canvas.width, canvas.height);
+      for (let index = renderedOrbitingBodies.length - 1; index >= 0; index -= 1) {
+        const body = renderedOrbitingBodies[index];
+        const c = screen(body.orbit.center.x, body.orbit.center.y, body.orbit.center.z);
+        const a = projectedVector(body.orbit.a),
+          b = projectedVector(body.orbit.b);
+        const m = [a.x / kmPerPixel, -a.y / kmPerPixel, b.x / kmPerPixel, -b.y / kmPerPixel];
+        const ad = cameraDepth(body.orbit.a),
+          bd = cameraDepth(body.orbit.b),
+          depthScale = Math.hypot(ad, bd) || 1;
+        const speedFraction = (body.speedKmPerSecond - minimumOrbitalSpeed) /
+          Math.max(maximumOrbitalSpeed - minimumOrbitalSpeed, 1e-9);
+        const visibleOrbitFraction = MIN_VISIBLE_ORBIT_FRACTION +
+          (MAX_VISIBLE_ORBIT_FRACTION - MIN_VISIBLE_ORBIT_FRACTION) *
+          Math.sqrt(speedFraction);
+        const arcEnd = ((body.E % TAU) + TAU) % TAU;
+        const arcSpan = TAU * visibleOrbitFraction;
+        const arcFade = TAU * ORBIT_FADE_FRACTION;
+
+        drawQuad(
+          c.x,
+          c.y,
+          m,
+          theme.orbit,
+          0,
+          [ad / depthScale, bd / depthScale],
+          arcEnd,
+          arcSpan,
+          arcFade
+        );
+      }
+      drawPlanetaryRings(theme);
+      for (const body of renderedBodies) {
+        const c = screen(body.position.x, body.position.y, body.position.z),
+          r = body.radius / kmPerPixel;
+        if (r >= .35) drawQuad(c.x, c.y, [r, 0, 0, r], body.color, 1);
+      }
+      drawLabels();
+      scaleLabel.textContent =
+        `Scale: 1 px = ${formattedDistancePerPixel(kmPerPixel)} · view width = ${formattedDistancePerPixel(w * kmPerPixel)}`;
+    }
+
+    function fitSystemThrough(bodyName) {
+      const boundaryBody = bodyByName.get(bodyName);
+      const farthestDistance = boundaryBody.elements.a * (1 + boundaryBody.elements.e) * AU_KM;
+      kmPerPixel = 2 * farthestDistance / Math.max(100, Math.min(w, h) - 70);
+      viewPivot = { x: 0, y: 0, z: 0 };
+      softPivotBody = null;
+      freeFlightOrigin = { ...viewPivot };
+      centerX = 0;
+      centerY = 0;
+      selectedBody = null;
+      followSelection = false;
+      updateSelectionCard();
+      resetCameraOrientation();
+      draw();
+    }
+
+    function showInnerSystem() {
+      fitSystemThrough("Mars");
+    }
+
+    function showOuterSystem() {
+      fitSystemThrough("Pluto");
+    }
+
+    function showDistantSystem() {
+      fitSystemThrough("Sedna");
+    }
+
+    function showNeighbourhood() {
+      kmPerPixel = 2 * farthestStellarDistanceKm /
+        Math.max(100, Math.min(w, h) - 70);
+      viewPivot = { x: 0, y: 0, z: 0 };
+      softPivotBody = null;
+      freeFlightOrigin = { ...viewPivot };
+      centerX = 0;
+      centerY = 0;
+      selectedBody = null;
+      followSelection = false;
+      updateSelectionCard();
+      resetCameraOrientation();
+      draw();
+    }
+
+    function resize() {
+      const r = canvas.getBoundingClientRect(),
+        first = w === 1 && h === 1,
+        previousWidth = w,
+        previousHeight = h;
+      w = Math.max(1, r.width);
+      h = Math.max(1, r.height);
+      if (!first && pivotScreenAnchor) {
+        // Preserve the pivot's relative screen location across mobile
+        // orientation changes and responsive-layout resizes.
+        pivotScreenAnchor = {
+          x: pivotScreenAnchor.x * w / previousWidth,
+          y: pivotScreenAnchor.y * h / previousHeight
+        };
+      }
+      // Higher ratios add substantial GPU and label-canvas cost on phones
+      // without a meaningful improvement at this display scale.
+      dpr = Math.min(2, Math.max(1, devicePixelRatio || 1));
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      labels.width = Math.round(w * dpr);
+      labels.height = Math.round(h * dpr);
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (first) {
+        showOuterSystem();
+      } else {
+        alignViewPivotToAnchor();
+        draw();
+      }
+    }
+
+    function zoomAt(x, y, factor) {
+      // Preserve the physical point under the cursor/pinch midpoint while the
+      // multiplicative scale changes. In free navigation, also move the
+      // world-space pivot along the viewing direction. Orthographic rendering
+      // hides that depth translation until the user rotates the camera.
+      const before = world(x, y);
+      const oldKmPerPixel = kmPerPixel;
+      const followingSelectedBody = selectedBody && followSelection;
+      const bodyAtZoomTarget = bodyNearScreenPoint(x, y);
+      const acquireSoftPivot = factor < 1 && bodyAtZoomTarget;
+      const retainSoftPivot = softPivotBody && bodyAtZoomTarget === softPivotBody;
+      const neighbourhoodDiameter = 2 * farthestStellarDistanceKm;
+      const maximumKmPerPixel = 4 * neighbourhoodDiameter / Math.max(100, Math.min(w, h));
+      kmPerPixel = Math.min(maximumKmPerPixel, Math.max(10, kmPerPixel * factor));
+      centerX = before.x - (x - w / 2) * kmPerPixel;
+      centerY = before.y + (y - h / 2) * kmPerPixel;
+      synchronizePivotToCenter();
+
+      if (followingSelectedBody) {
+        // Selection mode remains an orbit camera: zoom changes scale while the
+        // selected body continues to be the fixed point of rotation.
+        viewPivot = { ...selectedBody.position };
+        centerOnViewPivot();
+      } else if (acquireSoftPivot || retainSoftPivot) {
+        // A body beneath an inward zoom supplies the real depth that an
+        // orthographic cursor ray cannot. This is an automatic rotation anchor
+        // only; it does not select or follow the body through the UI.
+        softPivotBody = acquireSoftPivot || softPivotBody;
+        followSelection = false;
+        viewPivot = { ...softPivotBody.position };
+        pivotScreenAnchor = { x, y };
+        alignViewPivotToAnchor();
+        freeFlightOrigin = { ...viewPivot };
+      } else {
+        if (softPivotBody) {
+          softPivotBody = null;
+          synchronizePivotToCenter();
+          freeFlightOrigin = { ...viewPivot };
+        } else {
+          followSelection = false;
+        }
+        const travelDistance = (oldKmPerPixel - kmPerPixel) *
+          Math.min(w, h) * FLY_DEPTH_VIEWPORT_FRACTION;
+        viewPivot = {
+          x: viewPivot.x + cameraForward.x * travelDistance,
+          y: viewPivot.y + cameraForward.y * travelDistance,
+          z: viewPivot.z + cameraForward.z * travelDistance
+        };
+
+        // Empty space has no measurable target depth in an orthographic view.
+        // Keep the invented depth within two current viewport spans of the
+        // last free-flight origin so close-scale rotation cannot inherit an
+        // AU-scale lever arm from earlier wide zooms.
+        const fromOrigin = {
+          x: viewPivot.x - freeFlightOrigin.x,
+          y: viewPivot.y - freeFlightOrigin.y,
+          z: viewPivot.z - freeFlightOrigin.z
+        };
+        const currentDepth = cameraDepth(fromOrigin);
+        const maximumDepth = 2 * Math.min(w, h) * kmPerPixel;
+        const clampedDepth = Math.min(maximumDepth, Math.max(-maximumDepth, currentDepth));
+        const depthCorrection = clampedDepth - currentDepth;
+        viewPivot = {
+          x: viewPivot.x + cameraForward.x * depthCorrection,
+          y: viewPivot.y + cameraForward.y * depthCorrection,
+          z: viewPivot.z + cameraForward.z * depthCorrection
+        };
+      }
+
+      draw();
+    }
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(e.deltaY * .0015));
+    }, {
+      passive: false
+    });
+    canvas.addEventListener("pointerdown", e => {
+      if (e.button !== 0 && e.button !== 2) return;
+      e.preventDefault();
+      if (focusAnimationFrame) {
+        cancelAnimationFrame(focusAnimationFrame);
+        focusAnimationFrame = 0;
+        if (selectedBody && followSelection) {
+          viewPivot = { ...selectedBody.position };
+          centerOnViewPivot();
+        }
+      }
+      panDragDistance = 0;
+      canvas.setPointerCapture(e.pointerId);
+      if (e.pointerType === "touch") {
+        activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        dragging = true;
+        canvas.classList.add("dragging");
+        if (activeTouches.size === 1) {
+          lastX = e.clientX;
+          lastY = e.clientY;
+        } else if (activeTouches.size === 2) {
+          panDragDistance = Infinity;
+          const [first, second] = [...activeTouches.values()];
+          previousPinchDistance = Math.hypot(second.x - first.x, second.y - first.y);
+          previousPinchCenter = {
+            x: (first.x + second.x) / 2,
+            y: (first.y + second.y) / 2
+          };
+        }
+        return;
+      }
+      dragging = true;
+      dragMode = e.button === 2 ? "orbit" : "pan";
+      orbitDragDistance = 0;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvas.classList.add("dragging");
+    });
+    canvas.addEventListener("pointermove", e => {
+      if (e.pointerType === "touch" && activeTouches.has(e.pointerId)) {
+        e.preventDefault();
+        const previousTouch = activeTouches.get(e.pointerId);
+        activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (activeTouches.size === 1) {
+          panDragDistance += Math.hypot(e.clientX - previousTouch.x, e.clientY - previousTouch.y);
+          centerX -= (e.clientX - previousTouch.x) * kmPerPixel;
+          centerY += (e.clientY - previousTouch.y) * kmPerPixel;
+          releaseToFreeFlight();
+          draw();
+        } else {
+          panDragDistance = Infinity;
+          const [first, second] = [...activeTouches.values()];
+          const pinchDistance = Math.hypot(second.x - first.x, second.y - first.y);
+          const pinchCenter = {
+            x: (first.x + second.x) / 2,
+            y: (first.y + second.y) / 2
+          };
+          if (previousPinchCenter && previousPinchDistance > 0 && pinchDistance > 0) {
+            centerX -= (pinchCenter.x - previousPinchCenter.x) * kmPerPixel;
+            centerY += (pinchCenter.y - previousPinchCenter.y) * kmPerPixel;
+            releaseToFreeFlight();
+            const bounds = canvas.getBoundingClientRect();
+            zoomAt(
+              pinchCenter.x - bounds.left,
+              pinchCenter.y - bounds.top,
+              previousPinchDistance / pinchDistance
+            );
+          }
+          previousPinchDistance = pinchDistance;
+          previousPinchCenter = pinchCenter;
+        }
+        return;
+      }
+      if (!dragging) return;
+      const dx = e.clientX - lastX,
+        dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (dragMode === "orbit") {
+        orbitDragDistance += Math.hypot(dx, dy);
+        orbitCamera(dx, dy);
+      } else {
+        panDragDistance += Math.hypot(dx, dy);
+        centerX -= dx * kmPerPixel;
+        centerY += dy * kmPerPixel;
+        releaseToFreeFlight();
+      }
+      draw();
+    });
+
+    function stop(e) {
+      if (e.pointerType === "touch") {
+        const wasLastTouch = activeTouches.size === 1;
+        activeTouches.delete(e.pointerId);
+        if (activeTouches.size === 1) {
+          const remaining = [...activeTouches.values()][0];
+          lastX = remaining.x;
+          lastY = remaining.y;
+          previousPinchDistance = 0;
+          previousPinchCenter = null;
+        } else if (activeTouches.size === 0) {
+          dragging = false;
+          previousPinchDistance = 0;
+          previousPinchCenter = null;
+          canvas.classList.remove("dragging");
+          if (wasLastTouch && panDragDistance < 6) {
+            const bounds = canvas.getBoundingClientRect();
+            selectBodyAt(e.clientX - bounds.left, e.clientY - bounds.top);
+          }
+        }
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+        return;
+      }
+      if (e.type === "pointerup" && dragMode === "pan" && panDragDistance < 5) {
+        const bounds = canvas.getBoundingClientRect();
+        selectBodyAt(e.clientX - bounds.left, e.clientY - bounds.top);
+      }
+      if (e.type === "pointerup" && dragMode === "orbit" && orbitDragDistance < 4) {
+        const currentClick = {
+          time: performance.now(),
+          x: e.clientX,
+          y: e.clientY
+        };
+        const isDoubleClick = previousRightClick &&
+          currentClick.time - previousRightClick.time < 400 &&
+          Math.hypot(
+            currentClick.x - previousRightClick.x,
+            currentClick.y - previousRightClick.y
+          ) < 8;
+
+        if (isDoubleClick) {
+          resetCameraOrientation();
+          previousRightClick = null;
+          draw();
+        } else {
+          previousRightClick = currentClick;
+        }
+      }
+
+      dragging = false;
+      canvas.classList.remove("dragging");
+      try {
+        canvas.releasePointerCapture(e.pointerId)
+      } catch (_) {}
+    }
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointercancel", stop);
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
+    document.getElementById("zoomIn").addEventListener("click", () => zoomAt(w / 2, h / 2, .5));
+    document.getElementById("zoomOut").addEventListener("click", () => zoomAt(w / 2, h / 2, 2));
+    document.getElementById("innerView").addEventListener("click", showInnerSystem);
+    document.getElementById("outerView").addEventListener("click", showOuterSystem);
+    document.getElementById("distantView").addEventListener("click", showDistantSystem);
+    document.getElementById("neighbourhoodView").addEventListener("click", showNeighbourhood);
+    for (const button of document.querySelectorAll("[data-system]")) {
+      button.addEventListener("click", () => {
+        const body = bodyByName.get(button.dataset.system);
+        if (body) focusBody(body, true, true);
+      });
+    }
+    document.getElementById("closeSelection").addEventListener("click", () => {
+      selectedBody = null;
+      followSelection = false;
+      freeFlightOrigin = { ...viewPivot };
+      updateSelectionCard();
+      draw();
+    });
+    document.getElementById("closeNote").addEventListener("click", () => {
+      document.getElementById("infoNote").hidden = true;
+    });
+    themeButton.addEventListener("click", toggleTheme);
+    new ResizeObserver(resize).observe(canvas);
+    function updateAstronomicalTime() {
+      const now = new Date();
+      updateEphemeris(now);
+      if (selectedBody && followSelection && !focusAnimationFrame) {
+        viewPivot = { ...selectedBody.position };
+        centerOnViewPivot();
+      } else if (softPivotBody) {
+        viewPivot = { ...softPivotBody.position };
+        alignViewPivotToAnchor();
+      }
+      // Position-dependent details only need the one-second ephemeris tick,
+      // not every animation frame while the camera moves.
+      updateSelectionCard();
+      draw();
+
+      const millisecondsUntilNextSecond = 1000 - (now.getTime() % 1000);
+      window.setTimeout(updateAstronomicalTime, millisecondsUntilNextSecond + 10);
+    }
+    updateAstronomicalTime();
+  })();
+  </script>
+</body>
+</html>
